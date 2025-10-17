@@ -27,6 +27,7 @@ class Material extends Model
         'price',
         'unit',
         'link',
+        'negara_asal',
         'price_inflasi',
         'description',
         'location',

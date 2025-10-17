@@ -35,8 +35,14 @@ class WorkerController extends Controller
 
     public function index()
     {
-        $workers = Worker::with('category')->paginate(10);
+        // $workers = Worker::with('category')->paginate(10);
+        $search = request()->query('search');
 
+        $workers = Worker::with('category')
+            ->when($search, function ($query, $search) {
+                $query->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            })->paginate(10);
         return view('worker.index', compact('workers'));
     }
 

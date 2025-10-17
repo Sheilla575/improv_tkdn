@@ -23,6 +23,7 @@ Route::prefix('master')->name('master.')->group(function () {
     Route::post('worker/import', [App\Http\Controllers\WorkerController::class, 'import'])->name('worker.import');
     Route::delete('worker/delete-all', [App\Http\Controllers\WorkerController::class, 'deleteAll'])->name('worker.delete-all');
     Route::resource('worker', App\Http\Controllers\WorkerController::class);
+    // Route::get('/page-worker', [WorkerController::class, 'index'])->name('Page_Worker');
 
     // Material routes - specific routes must come BEFORE resource route
     Route::get('material/download-template', [App\Http\Controllers\MaterialController::class, 'downloadTemplate'])->name('material.download-template');

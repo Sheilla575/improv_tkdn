@@ -70,6 +70,12 @@
                     Click row to view details
                 </p>
             </div>
+           <form method="GET" action="#">
+                <div class="relative">
+                    <input type="text" name="search" class="form-input pl-10"
+                        value="{{ request('search') }}" placeholder="Search Position" />
+                </div>
+            </form>
         </div>
         <div class="card-body p-0">
             <div class="overflow-x-auto">

@@ -23,6 +23,7 @@ return new class extends Migration {
             $table->unsignedBigInteger('price')->nullable();
             $table->string('unit')->nullable();
             $table->string('link')->nullable();
+            $table->string('negara_asal')->nullable();
             $table->unsignedBigInteger('price_inflasi')->nullable();
             $table->string('description')->nullable();
             $table->string('location')->nullable();

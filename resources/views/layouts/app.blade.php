@@ -172,12 +172,12 @@
                     </a>
 
                     <!-- Support -->
-                    <a href="{{ url('/support') }}" class="nav-link group">
+                    <!-- <a href="{{ url('/support') }}" class="nav-link group">
                         <svg class="w-5 h-5 mr-3 text-gray-400 group-hover:text-primary-500 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 14v.01M12 10v.01M16 10v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <span>Support</span>
-                    </a>
+                    </a> -->
 
                 </nav>
 

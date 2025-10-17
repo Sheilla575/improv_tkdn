@@ -1282,6 +1282,9 @@
                                                     );
                                                 });
                                             @endphp
+                                            @php
+                                                $hppItems32 = $service->items()->where('tkdn_classification', '3.2')->get();
+                                            @endphp
                                             
                                             @if($hppItems32->isNotEmpty())
                                             <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -1300,7 +1303,8 @@
                                                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">No.</th>
                                                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Uraian</th>
                                                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Kualifikasi</th>
-                                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">WN</th>
+                                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Dibuat</th>
+                                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Dimiliki</th>
                                                                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">TKDN (%)</th>
                                                                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Jumlah</th>
                                                                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Durasi</th>
@@ -1308,32 +1312,35 @@
                                                                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider" colspan="3">BIAYA (Rupiah)</th>
                                                             </tr>
                                                             <tr>
-                                                                <th colspan="8" class="px-6 py-2"></th>
+                                                                <th colspan="9" class="px-6 py-2"></th>
                                                                 <th class="px-6 py-2 text-center text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wider">KDN</th>
                                                                 <th class="px-6 py-2 text-center text-xs font-medium text-red-600 dark:text-red-400 uppercase tracking-wider">KLN</th>
                                                                 <th class="px-6 py-2 text-center text-xs font-medium text-green-600 dark:text-green-400 uppercase tracking-wider">TOTAL</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                                            
                                                             @foreach($hppItems32 as $index => $serviceItem)
                                                                 @php
                                                                     $tkdnPercent = is_array($serviceItem) ? ($serviceItem['tkdn_percentage'] ?? 0) : ($serviceItem->tkdn_percentage ?? 0);
                                                                     $totalPrice = is_array($serviceItem) ? ($serviceItem['total_price'] ?? 0) : ($serviceItem->total_price ?? 0);
                                                                     $kdn = is_array($serviceItem) ? ($serviceItem['domestic_cost'] ?? 0) : ($serviceItem->domestic_cost ?? 0);
                                                                     $kln = is_array($serviceItem) ? ($serviceItem['foreign_cost'] ?? 0) : ($serviceItem->foreign_cost ?? 0);
+
                                                                 @endphp
                                                                 <tr class="hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors duration-200">
                                                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white text-center">{{ $index + 1 }}</td>
                                                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ is_array($serviceItem) ? $serviceItem['description'] : $serviceItem->description }}</td>
-                                                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">-</td>
-                                                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">WNI</td>
+                                                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ is_array($serviceItem) ? ($serviceItem['spesifikasi']) : $serviceItem->spesifikasi }}</td>
+                                                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ is_array($serviceItem) ? ($serviceItem['dibuat']) : $serviceItem->dibuat }}</td>
+                                                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ is_array($serviceItem) ? ($serviceItem['dimiliki']) : $serviceItem->dimiliki }}</td>
                                                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-center">
                                                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $tkdnPercent >= 75 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : ($tkdnPercent >= 50 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200') }}">
                                                                             {{ number_format($tkdnPercent, 0) }}%
                                                                         </span>
                                                                     </td>
                                                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white text-center">{{ is_array($serviceItem) ? $serviceItem['volume'] : $serviceItem->volume }}</td>
-                                                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white text-center">{{ is_array($serviceItem) ? ($serviceItem['duration'] ?? '-') : ($serviceItem->duration ?? '-') }} hari</td>
+                                                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white text-center">1 ls</td>
                                                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white text-right font-medium">{{ number_format($totalPrice, 0, ',', '.') }}</td>
                                                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600 dark:text-blue-400 text-right font-medium">{{ number_format($kdn, 0, ',', '.') }}</td>
                                                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-red-600 dark:text-red-400 text-right font-medium">{{ number_format($kln, 0, ',', '.') }}</td>
@@ -1354,7 +1361,7 @@
                                                                 });
                                                             @endphp
                                                             <tr class="bg-green-50 dark:bg-green-900/20 font-semibold">
-                                                                <td colspan="7" class="px-6 py-4 text-center text-sm font-bold text-green-900 dark:text-green-100">SUB TOTAL</td>
+                                                                <td colspan="8" class="px-6 py-4 text-center text-sm font-bold text-green-900 dark:text-green-100">SUB TOTAL</td>
                                                                 <td class="px-6 py-4 text-right text-sm font-bold text-green-900 dark:text-green-100">{{ number_format($subtotal32, 0, ',', '.') }}</td>
                                                                 <td class="px-6 py-4 text-right text-sm font-bold text-blue-600 dark:text-blue-400">{{ number_format($totalKdn32, 0, ',', '.') }}</td>
                                                                 <td class="px-6 py-4 text-right text-sm font-bold text-red-600 dark:text-red-400">{{ number_format($totalKln32, 0, ',', '.') }}</td>
@@ -1522,7 +1529,7 @@
                                                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">WN</th>
                                                                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">TKDN (%)</th>
                                                                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Jumlah</th>
-                                                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Durasi</th>
+                                                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"></th>
                                                                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Upah (Rupiah)</th>
                                                                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider" colspan="3">BIAYA (Rupiah)</th>
                                                             </tr>
@@ -1552,7 +1559,7 @@
                                                                         </span>
                                                                     </td>
                                                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white text-center">{{ is_array($serviceItem) ? $serviceItem['volume'] : $serviceItem->volume }}</td>
-                                                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white text-center">{{ is_array($serviceItem) ? ($serviceItem['duration'] ?? '-') : ($serviceItem->duration ?? '-') }}</td>
+                                                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white text-center"></td>
                                                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white text-right font-medium">{{ number_format($totalPrice, 0, ',', '.') }}</td>
                                                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600 dark:text-blue-400 text-right font-medium">{{ number_format($kdn, 0, ',', '.') }}</td>
                                                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-red-600 dark:text-red-400 text-right font-medium">{{ number_format($kln, 0, ',', '.') }}</td>
@@ -1729,12 +1736,11 @@
                                                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">WN</th>
                                                                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">TKDN (%)</th>
                                                                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Jumlah</th>
-                                                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Durasi</th>
                                                                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Upah (Rupiah)</th>
-                                                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider" colspan="3">BIAYA (Rupiah)</th>
+                                                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider" colspan="2">BIAYA (Rupiah)</th>
                                                             </tr>
                                                             <tr>
-                                                                <th colspan="8" class="px-6 py-2"></th>
+                                                                <th colspan="7" class="px-6 py-2"></th>
                                                                 <th class="px-6 py-2 text-center text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wider">KDN</th>
                                                                 <th class="px-6 py-2 text-center text-xs font-medium text-red-600 dark:text-red-400 uppercase tracking-wider">KLN</th>
                                                                 <th class="px-6 py-2 text-center text-xs font-medium text-green-600 dark:text-green-400 uppercase tracking-wider">TOTAL</th>
@@ -1759,9 +1765,10 @@
                                                                                 {{ number_format($tkdnPercent, 0) }}%
                                                                             </span>
                                                                         </td>
-                                                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white text-center">{{ is_array($serviceItem) ? $serviceItem['volume'] : $serviceItem->volume }}</td>
-                                                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white text-center">{{ is_array($serviceItem) ? ($serviceItem['duration'] ?? '-') : ($serviceItem->duration ?? '-') }}</td>
-                                                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white text-right font-medium">{{ number_format($totalPrice, 0, ',', '.') }}</td>
+                                                                        <!-- ini data koefisien ahs?? -->
+                                                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white text-center">{{ is_array($serviceItem) ? $serviceItem['volume'] : $serviceItem->volume }}</td> 
+                                                                        
+                                                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white text-left font-medium">{{ number_format($totalPrice, 0, ',', '.') }}</td>
                                                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600 dark:text-blue-400 text-right font-medium">{{ number_format($kdn, 0, ',', '.') }}</td>
                                                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-red-600 dark:text-red-400 text-right font-medium">{{ number_format($kln, 0, ',', '.') }}</td>
                                                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-green-600 dark:text-green-400 text-right font-medium">{{ number_format($totalPrice, 0, ',', '.') }}</td>
@@ -1781,14 +1788,14 @@
                                                                         </td>
                                                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white text-center">{{ $serviceItem->quantity }}</td>
                                                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white text-center">{{ 
-                                number_format(
-                                    is_array($serviceItem) 
-                                    ? ($serviceItem['total_price'] ?? 0) 
-                                    : ($serviceItem->total_price ?? 0), 
-                                    0, ',', '.'
-                                ) 
-                                }}
-                                </td>
+                                                                            number_format(
+                                                                                is_array($serviceItem) 
+                                                                                ? ($serviceItem['total_price'] ?? 0) 
+                                                                                : ($serviceItem->total_price ?? 0), 
+                                                                                0, ',', '.'
+                                                                            ) 
+                                                                            }}
+                                                                            </td>
                                                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white text-right font-medium">{{ number_format($serviceItem->wage, 0, ',', '.') }}</td>
                                                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600 dark:text-blue-400 text-right font-medium">{{ number_format($serviceItem->domestic_cost, 0, ',', '.') }}</td>
                                                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-red-600 dark:text-red-400 text-right font-medium">{{ number_format($serviceItem->foreign_cost, 0, ',', '.') }}</td>
@@ -1799,7 +1806,7 @@
                                                             
                                                             <!-- Sub Total -->
                                                             <tr class="bg-orange-50 dark:bg-orange-900/20 font-semibold">
-                                                                <td colspan="7" class="px-6 py-4 text-center text-sm font-bold text-orange-900 dark:text-orange-100">SUB TOTAL</td>
+                                                                <td colspan="6" class="px-6 py-4 text-center text-sm font-bold text-orange-900 dark:text-orange-100">SUB TOTAL</td>
                                                                 @if($hppItems34->count() > 0)
                                                                     @php
                                                                         $totalKdn34 = $hppItems34->sum(function($item) {
@@ -2225,6 +2232,8 @@
                                                         <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Satuan</th>
                                                         <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Harga Satuan (Rupiah)</th>
                                                         <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider" colspan="3">BIAYA (Rupiah)</th>
+                                                        
+                                                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"></th>
                                                         <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">TKDN Barang (%)</th>
                                                     </tr>
                                                     <tr>

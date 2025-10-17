@@ -178,7 +178,7 @@
                             @enderror
                         </div>
                         <!-- Field Satuan -->
-                        <div>
+                        <!-- <div>
                             <label for="satuan" class="form-label">Satuan<span class="text-red-500">*</span></label>
                             <div class="relative">
                                 <input type="text" name="satuan" id="satuan" value="{{ old('satuan') }}" class="form-input pl-10 w-full @error('satuan') border-red-500 focus:ring-red-500 focus:border-red-500 @enderror" placeholder="Opsional">
@@ -186,7 +186,7 @@
                             @error('satuan')
                             <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
                             @enderror
-                        </div>
+                        </div> -->
                     </div>
 
                     <!-- Technical Information -->
@@ -244,7 +244,7 @@
                             @enderror
                         </div>
                         <!-- Period Input (Dynamic) -->
-                        <div id="period-container">
+                        <!-- <div id="period-container">
                             <label for="period" class="form-label">
                                 Period (Hari)
                                 <span class="text-red-500">*</span>
@@ -273,7 +273,7 @@
                             @error('period')
                             <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
                             @enderror
-                        </div>
+                        </div> -->
                     </div>
 
                     <!-- Pricing Information -->
