@@ -287,15 +287,15 @@ class EquipmentController extends Controller
 
         // Set headers
         $headers = [
-            'Name', 'Category', 'TKDN', 'Equipment Type', 
+            'Name', 'Category', 'TKDN', 'Spesifikasi', 'Dibuat', 'Dimiliki', 'Equipment Type', 
             'Price', 'Description', 'Location', 'Classification TKDN'
         ];
         $sheet->fromArray($headers, null, 'A1');
 
         // Set example data
         $exampleData = [
-            ['Excavator Mini', 'Peralatan', '85.50', 'Dapat Dipakai Ulang', '2500000', 'Mini excavator for small projects', 'Jakarta', 'Alat Kerja / Fasilitas'],
-            ['Safety Helmet', 'Peralatan', '100.00', 'Habis Pakai', '150000', 'Safety helmet for workers', 'Bandung', 'Alat Kerja / Fasilitas'],
+            ['Excavator Mini', 'Peralatan', '85.50', '', '', '', 'Dapat Dipakai Ulang', '2500000', 'Mini excavator for small projects', 'Jakarta', 'Alat Kerja / Fasilitas'],
+            ['Safety Helmet', 'Peralatan', '100.00', '', '', '', 'Habis Pakai', '150000', 'Safety helmet for workers', 'Bandung', 'Alat Kerja / Fasilitas'],
         ];
         $sheet->fromArray($exampleData, null, 'A2');
 
@@ -336,7 +336,7 @@ class EquipmentController extends Controller
 
         // Terapkan untuk baris 2 sampai 1000 (bisa diubah sesuai kebutuhan)
         for ($row = 2; $row <= 1000; $row++) {
-            $validation = $sheet->getCell("H{$row}")->getDataValidation();
+            $validation = $sheet->getCell("K{$row}")->getDataValidation();
             $validation->setType(DataValidation::TYPE_LIST);
             $validation->setErrorStyle(DataValidation::STYLE_STOP);
             $validation->setAllowBlank(true);
@@ -357,7 +357,7 @@ class EquipmentController extends Controller
 
         // Terapkan untuk baris 2 sampai 1000 (bisa diubah sesuai kebutuhan)
         for ($row = 2; $row <= 1000; $row++) {
-            $validation = $sheet->getCell("D{$row}")->getDataValidation();
+            $validation = $sheet->getCell("G{$row}")->getDataValidation();
             $validation->setType(DataValidation::TYPE_LIST);
             $validation->setErrorStyle(DataValidation::STYLE_STOP);
             $validation->setAllowBlank(true);
@@ -539,8 +539,8 @@ class EquipmentController extends Controller
 
                     // Convert classification TKDN from string to integer
                     $classificationTkdn = null;
-                    if (!empty($row[8])) {
-                        $classificationTkdn = StringHelper::classificationTkdnToInt(trim($row[8]));
+                    if (!empty($row[11])) {
+                        $classificationTkdn = StringHelper::classificationTkdnToInt(trim($row[11]));
                     }
 
                     // Create equipment
@@ -549,11 +549,14 @@ class EquipmentController extends Controller
                         'category_id' => $categoryId,
                         'classification_tkdn' => $classificationTkdn,
                         'tkdn' => ! empty($row[2]) ? (float) $row[2] : null,
-                        'type' => trim($row[3]),
+                        'type' => trim($row[6]),
                         'period' => null,
-                        'price' => (int) $row[4],
-                        'description' => ! empty($row[5]) ? trim($row[5]) : null,
-                        'location' => ! empty($row[6]) ? trim($row[6]) : null,
+                        'spesifikasi' => trim($row[4]),
+                        'dibuat' => trim($row[5]),
+                        'dimiliki' => trim($row[6]),
+                        'price' => (int) $row[7],
+                        'description' => ! empty($row[8]) ? trim($row[8]) : null,
+                        'location' => ! empty($row[9]) ? trim($row[9]) : null,
                         'code' => $code,
                     ]);
 
