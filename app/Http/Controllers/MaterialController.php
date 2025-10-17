@@ -189,43 +189,60 @@ class MaterialController extends Controller
 
         // Set headers
         $headers = [
-            'Name', 'Category', 'Brand', 'Specification', 'TKDN', 'Price', 
-            'Unit', 'Link', 'Price Inflasi', 'Description', 'Location', 'Classification TKDN'
+            'Name', 'Category', 'Merk', 'Negara Asal', 'Tipe', 'Specification', 'TKDN', 'Price', 
+            'Unit', 'Link', 'Description', 'Location', 'Classification TKDN'
         ];
         $sheet->fromArray($headers, null, 'A1');
 
         // Set example data
         $exampleData = [
-            ['Cement Portland', 'Building Material', 'Semen Gresik', 'Type I', '100.00', '85000', 'Sak', 'https://example.com', '90000', 'Portland cement type I', 'Jakarta', ''],
-            ['Steel Bar', 'Steel', 'Krakatau Steel', 'Diameter 10mm', '85.50', '150000', 'Ton', 'https://example.com', '160000', 'Steel reinforcement bar', 'Bandung', ''],
+            ['Cement Portland', 'Building Material', 'Semen Gresik', 'Dalam Negeri', 'Semen', '30KG', '100.00', '85000', 'Sak', 'https://example.com', 'Portland cement type I', 'Jakarta', 'Peralatan (Jasa Umum)'],
+            ['Steel Bar', 'Steel', 'Krakatau Steel', 'Luar Negeri', 'Semen', '30KG', '100', '150000', 'Ton', 'https://example.com', 'Steel reinforcement bar', 'Bandung', 'Peralatan (Jasa Umum)'],
         ];
         $sheet->fromArray($exampleData, null, 'A2');
 
         // Style headers
-        $sheet->getStyle('A1:L1')->getFont()->setBold(true);
-        $sheet->getStyle('A1:L1')->getFill()
+        $sheet->getStyle('A1:M1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:M1')->getFill()
             ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
             ->getStartColor()->setRGB('E5E7EB');
 
         // Auto size columns
-        foreach (range('A', 'L') as $col) {
+        foreach (range('A', 'M') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
-        // === Tambahkan dropdown list untuk kolom L (Classification TKDN) ===
         $dropdownOptions = [
-            'Overhead & Manajemen',
-            'Alat Kerja / Fasilitas',
-            'Konstruksi & Fabrikasi',
-            'Peralatan (Jasa Umum)',
-            'Material (Bahan Baku)',
-            'Peralatan (Barang Jadi)',
-            'Summary',
+            'Dalam Negeri',
+            'Luar Negeri'
         ]; // nilai yang muncul di dropdown
 
         // Terapkan untuk baris 2 sampai 1000 (bisa ubah sesuai kebutuhan)
         for ($row = 2; $row <= 1000; $row++) {
-            $validation = $sheet->getCell("L{$row}")->getDataValidation();
+            $validation = $sheet->getCell("D{$row}")->getDataValidation();
+            $validation->setType(DataValidation::TYPE_LIST);
+            $validation->setErrorStyle(DataValidation::STYLE_STOP);
+            $validation->setAllowBlank(true);
+            $validation->setShowInputMessage(true);
+            $validation->setShowErrorMessage(true);
+            $validation->setShowDropDown(true);
+            $validation->setFormula1('"' . implode(',', $dropdownOptions) . '"');
+            $validation->setPromptTitle('Pilih Negara Asal');
+            $validation->setPrompt('Silakan pilih salah satu nilai.');
+            $validation->setErrorTitle('Input salah');
+            $validation->setError('Nilai harus dipilih dari daftar yang tersedia.');
+        }
+
+        // === Tambahkan dropdown list untuk kolom L (Classification TKDN) ===
+        $dropdownOptions = [
+            'Peralatan (Jasa Umum)',
+            'Material (Bahan Baku)',
+            'Peralatan (Barang Jadi)'
+        ]; // nilai yang muncul di dropdown
+
+        // Terapkan untuk baris 2 sampai 1000 (bisa ubah sesuai kebutuhan)
+        for ($row = 2; $row <= 1000; $row++) {
+            $validation = $sheet->getCell("M{$row}")->getDataValidation();
             $validation->setType(DataValidation::TYPE_LIST);
             $validation->setErrorStyle(DataValidation::STYLE_STOP);
             $validation->setAllowBlank(true);
@@ -234,6 +251,24 @@ class MaterialController extends Controller
             $validation->setShowDropDown(true);
             $validation->setFormula1('"' . implode(',', $dropdownOptions) . '"');
             $validation->setPromptTitle('Pilih Klasifikasi TKDN');
+            $validation->setPrompt('Silakan pilih salah satu nilai.');
+            $validation->setErrorTitle('Input salah');
+            $validation->setError('Nilai harus dipilih dari daftar yang tersedia.');
+        }
+
+        $dropdownOptions = Category::pluck('name')->toArray();; // nilai yang muncul di dropdown
+
+        // Terapkan untuk baris 2 sampai 1000 (bisa ubah sesuai kebutuhan)
+        for ($row = 2; $row <= 1000; $row++) {
+            $validation = $sheet->getCell("B{$row}")->getDataValidation();
+            $validation->setType(DataValidation::TYPE_LIST);
+            $validation->setErrorStyle(DataValidation::STYLE_STOP);
+            $validation->setAllowBlank(true);
+            $validation->setShowInputMessage(true);
+            $validation->setShowErrorMessage(true);
+            $validation->setShowDropDown(true);
+            $validation->setFormula1('"' . implode(',', $dropdownOptions) . '"');
+            $validation->setPromptTitle('Pilih Kategori');
             $validation->setPrompt('Silakan pilih salah satu nilai.');
             $validation->setErrorTitle('Input salah');
             $validation->setError('Nilai harus dipilih dari daftar yang tersedia.');
@@ -344,12 +379,12 @@ class MaterialController extends Controller
                 }
 
                 // Validasi Price Inflasi
-                $priceInflasiErrors = $this->importService->validateNumericRange(
-                    $row[8] ?? null,
-                    'Price Inflasi',
-                    $rowNumber,
-                    0
-                );
+                // $priceInflasiErrors = $this->importService->validateNumericRange(
+                //     $row[8] ?? null,
+                //     'Price Inflasi',
+                //     $rowNumber,
+                //     0
+                // );
 
                 if (! empty($priceInflasiErrors)) {
                     $errors = array_merge($errors, $priceInflasiErrors);
@@ -377,8 +412,8 @@ class MaterialController extends Controller
 
                     // Convert classification TKDN from string to integer
                     $classificationTkdn = null;
-                    if (!empty($row[11])) {
-                        $classificationTkdn = StringHelper::classificationTkdnToInt(trim($row[11]));
+                    if (!empty($row[12])) {
+                        $classificationTkdn = StringHelper::classificationTkdnToInt(trim($row[12]));
                     }
 
                     // Create material
@@ -387,14 +422,16 @@ class MaterialController extends Controller
                         'category_id' => $categoryId,
                         'classification_tkdn' => $classificationTkdn,
                         'brand' => ! empty($row[2]) ? trim($row[2]) : null,
-                        'specification' => ! empty($row[3]) ? trim($row[3]) : null,
-                        'tkdn' => ! empty($row[4]) ? (float) str_replace(',', '.', $row[4]) : 100.00,
-                        'price' => (int) $row[5],
-                        'unit' => trim($row[6]),
-                        'link' => ! empty($row[7]) ? trim($row[7]) : null,
-                        'price_inflasi' => ! empty($row[8]) ? (int) $row[8] : null,
-                        'description' => ! empty($row[9]) ? trim($row[9]) : null,
-                        'location' => ! empty($row[10]) ? trim($row[10]) : null,
+                        'specification' => ! empty($row[5]) ? trim($row[5]) : null,
+                        'tkdn' => ! empty($row[6]) ? (float) str_replace(',', '.', $row[6]) : 100.00,
+                        'price' => (int) $row[7],
+                        'unit' => trim($row[8]),
+                        'link' => ! empty($row[9]) ? trim($row[9]) : null,
+                        'price_inflasi' => null,
+                        'negara_asal' => trim($row[4]),
+                        'type' => trim($row[5]),
+                        'description' => ! empty($row[10]) ? trim($row[10]) : null,
+                        'location' => ! empty($row[11]) ? trim($row[11]) : null,
                         'code' => $code,
                     ]);
 

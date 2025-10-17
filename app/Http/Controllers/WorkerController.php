@@ -155,48 +155,41 @@ class WorkerController extends Controller
         $sheet = $spreadsheet->getActiveSheet();
 
         // Set headers
-        $headers = ['Name', 'Unit', 'Category', 'Price', 'TKDN', 'Location', 'Classification TKDN'];
+        $headers = ['Name', 'Unit', 'Category', 'Price', 'TKDN', 'Location'];
         $sheet->fromArray($headers, null, 'A1');
 
         // Set example data
         $exampleData = [
-            ['John Doe', 'OH', 'Teknisi', '50000', '100.00', 'Jakarta', ''],
-            ['Jane Smith', 'Person', 'Operator', '75000', '85.50', 'Bandung', ''],
+            ['John Doe', 'OH', 'Teknisi', '50000', '100.00', 'Jakarta'],
+            ['Jane Smith', 'Person', 'Operator', '75000', '85.50', 'Bandung'],
         ];
         $sheet->fromArray($exampleData, null, 'A2');
 
         // Style headers
-        $sheet->getStyle('A1:G1')->getFont()->setBold(true);
-        $sheet->getStyle('A1:G1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+        $sheet->getStyle('A1:F1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:F1')->getFill()
+            ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
             ->getStartColor()->setRGB('E5E7EB');
 
         // Auto size columns
-        foreach (range('A', 'G') as $col) {
+        foreach (range('A', 'L') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
-        // === Tambahkan dropdown untuk kolom G (Classification TKDN) ===
-        $dropdownOptions = [
-            'Overhead & Manajemen',
-            'Alat Kerja / Fasilitas',
-            'Konstruksi & Fabrikasi',
-            'Peralatan (Jasa Umum)',
-            'Material (Bahan Baku)',
-            'Peralatan (Barang Jadi)',
-            'Summary',
-        ]; // nilai yang muncul di dropdown
+        // === Tambahkan dropdown list untuk kolom L (Classification TKDN) ===
+        $dropdownOptions = Category::pluck('name')->toArray(); // nilai yang muncul di dropdown
 
-        // Tentukan range baris data (misal dari baris 2 sampai 1000 agar fleksibel)
+        // Terapkan untuk baris 2 sampai 1000 (bisa ubah sesuai kebutuhan)
         for ($row = 2; $row <= 1000; $row++) {
-            $validation = $sheet->getCell("G{$row}")->getDataValidation();
+            $validation = $sheet->getCell("C{$row}")->getDataValidation();
             $validation->setType(DataValidation::TYPE_LIST);
             $validation->setErrorStyle(DataValidation::STYLE_STOP);
             $validation->setAllowBlank(true);
             $validation->setShowInputMessage(true);
             $validation->setShowErrorMessage(true);
             $validation->setShowDropDown(true);
-            $validation->setFormula1('"' . implode(',', $dropdownOptions) . '"'); // gabungkan list dropdown
-            $validation->setPromptTitle('Pilih Klasifikasi TKDN');
+            $validation->setFormula1('"' . implode(',', $dropdownOptions) . '"');
+            $validation->setPromptTitle('Pilih Kategori');
             $validation->setPrompt('Silakan pilih salah satu nilai.');
             $validation->setErrorTitle('Input salah');
             $validation->setError('Nilai harus dipilih dari daftar yang tersedia.');
@@ -334,7 +327,7 @@ class WorkerController extends Controller
                         'name' => trim($row[0]),
                         'unit' => trim($row[1]),
                         'category_id' => $categoryId,
-                        'classification_tkdn' => $classificationTkdn,
+                        'classification_tkdn' => 3,
                         'price' => (int) $row[3],
                         'tkdn' => $row[4],
                         'location' => ! empty($row[5]) ? trim($row[5]) : null,

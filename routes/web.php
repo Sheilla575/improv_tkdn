@@ -25,6 +25,12 @@ Route::prefix('master')->name('master.')->group(function () {
     Route::resource('worker', App\Http\Controllers\WorkerController::class);
     // Route::get('/page-worker', [WorkerController::class, 'index'])->name('Page_Worker');
 
+    // Journal Pekerjaan
+    Route::get('journal/download-template', [App\Http\Controllers\JournalWorkerController::class, 'downloadTemplate'])->name('journal.download-template');
+    Route::post('journal/import', [App\Http\Controllers\JournalWorkerController::class, 'import'])->name('journal.import');
+    Route::delete('journal/delete-all', [App\Http\Controllers\JournalWorkerController::class, 'deleteAll'])->name('journal.delete-all');
+    Route::resource('journal', App\Http\Controllers\JournalWorkerController::class);
+
     // Material routes - specific routes must come BEFORE resource route
     Route::get('material/download-template', [App\Http\Controllers\MaterialController::class, 'downloadTemplate'])->name('material.download-template');
     Route::post('material/import', [App\Http\Controllers\MaterialController::class, 'import'])->name('material.import');
