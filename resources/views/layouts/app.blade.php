@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>TKDN</title>
+    <title>PROTALIST</title>
     <link rel="icon" href="{{ asset('images/logo.png') }}" type="image/png">
     <link rel="dns-prefetch" href="//fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=Nunito" rel="stylesheet">
@@ -58,7 +58,7 @@
                         </svg>
                     </div>
                     <div>
-                        <h1 class="text-xl font-bold text-gray-900 dark:text-white">PROCALIST</h1>
+                        <h1 class="text-xl font-bold text-gray-900 dark:text-white">PROTALIST</h1>
                         <p class="text-xs text-gray-500 dark:text-gray-400">Dashboard</p>
                     </div>
                 </a>
