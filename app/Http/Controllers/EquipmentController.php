@@ -288,14 +288,14 @@ class EquipmentController extends Controller
         // Set headers
         $headers = [
             'Name', 'Category', 'TKDN', 'Equipment Type', 
-            'Period (Days)', 'Price', 'Description', 'Location', 'Classification TKDN'
+            'Price', 'Description', 'Location', 'Classification TKDN'
         ];
         $sheet->fromArray($headers, null, 'A1');
 
         // Set example data
         $exampleData = [
-            ['Excavator Mini', 'Heavy Equipment', '85.50', 'reusable', '30', '2500000', 'Mini excavator for small projects', 'Jakarta', ''],
-            ['Safety Helmet', 'Safety Equipment', '100.00', 'disposable', '0', '150000', 'Safety helmet for workers', 'Bandung', ''],
+            ['Excavator Mini', 'Peralatan', '85.50', 'Dapat Dipakai Ulang', '2500000', 'Mini excavator for small projects', 'Jakarta', 'Alat Kerja / Fasilitas'],
+            ['Safety Helmet', 'Peralatan', '100.00', 'Habis Pakai', '150000', 'Safety helmet for workers', 'Bandung', 'Alat Kerja / Fasilitas'],
         ];
         $sheet->fromArray($exampleData, null, 'A2');
 
@@ -310,20 +310,33 @@ class EquipmentController extends Controller
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
+        $dropdownOptions = Category::pluck('name')->toArray();; // nilai yang muncul di dropdown
+
+        // Terapkan untuk baris 2 sampai 1000 (bisa ubah sesuai kebutuhan)
+        for ($row = 2; $row <= 1000; $row++) {
+            $validation = $sheet->getCell("B{$row}")->getDataValidation();
+            $validation->setType(DataValidation::TYPE_LIST);
+            $validation->setErrorStyle(DataValidation::STYLE_STOP);
+            $validation->setAllowBlank(true);
+            $validation->setShowInputMessage(true);
+            $validation->setShowErrorMessage(true);
+            $validation->setShowDropDown(true);
+            $validation->setFormula1('"' . implode(',', $dropdownOptions) . '"');
+            $validation->setPromptTitle('Pilih Kategori');
+            $validation->setPrompt('Silakan pilih salah satu nilai.');
+            $validation->setErrorTitle('Input salah');
+            $validation->setError('Nilai harus dipilih dari daftar yang tersedia.');
+        }
+
         // === Tambahkan dropdown list untuk kolom I (Classification TKDN) ===
         $dropdownOptions = [
-            'Overhead & Manajemen',
             'Alat Kerja / Fasilitas',
-            'Konstruksi & Fabrikasi',
-            'Peralatan (Jasa Umum)',
-            'Material (Bahan Baku)',
-            'Peralatan (Barang Jadi)',
-            'Summary',
+            'Peralatan (Jasa Umum)'
         ]; // nilai yang muncul di dropdown
 
         // Terapkan untuk baris 2 sampai 1000 (bisa diubah sesuai kebutuhan)
         for ($row = 2; $row <= 1000; $row++) {
-            $validation = $sheet->getCell("I{$row}")->getDataValidation();
+            $validation = $sheet->getCell("H{$row}")->getDataValidation();
             $validation->setType(DataValidation::TYPE_LIST);
             $validation->setErrorStyle(DataValidation::STYLE_STOP);
             $validation->setAllowBlank(true);
@@ -332,6 +345,27 @@ class EquipmentController extends Controller
             $validation->setShowDropDown(true);
             $validation->setFormula1('"' . implode(',', $dropdownOptions) . '"');
             $validation->setPromptTitle('Pilih Klasifikasi TKDN');
+            $validation->setPrompt('Silakan pilih salah satu nilai.');
+            $validation->setErrorTitle('Input salah');
+            $validation->setError('Nilai harus dipilih dari daftar yang tersedia.');
+        }
+
+        $dropdownOptions = [
+            'Dapat Dipakai Ulang',
+            'Habis Pakai'
+        ]; // nilai yang muncul di dropdown
+
+        // Terapkan untuk baris 2 sampai 1000 (bisa diubah sesuai kebutuhan)
+        for ($row = 2; $row <= 1000; $row++) {
+            $validation = $sheet->getCell("D{$row}")->getDataValidation();
+            $validation->setType(DataValidation::TYPE_LIST);
+            $validation->setErrorStyle(DataValidation::STYLE_STOP);
+            $validation->setAllowBlank(true);
+            $validation->setShowInputMessage(true);
+            $validation->setShowErrorMessage(true);
+            $validation->setShowDropDown(true);
+            $validation->setFormula1('"' . implode(',', $dropdownOptions) . '"');
+            $validation->setPromptTitle('Pilih Type');
             $validation->setPrompt('Silakan pilih salah satu nilai.');
             $validation->setErrorTitle('Input salah');
             $validation->setError('Nilai harus dipilih dari daftar yang tersedia.');
@@ -515,10 +549,11 @@ class EquipmentController extends Controller
                         'category_id' => $categoryId,
                         'classification_tkdn' => $classificationTkdn,
                         'tkdn' => ! empty($row[2]) ? (float) $row[2] : null,
-                        'period' => (int) $row[4],
-                        'price' => (int) $row[5],
-                        'description' => ! empty($row[6]) ? trim($row[6]) : null,
-                        'location' => ! empty($row[7]) ? trim($row[7]) : null,
+                        'type' => trim($row[3]),
+                        'period' => null,
+                        'price' => (int) $row[4],
+                        'description' => ! empty($row[5]) ? trim($row[5]) : null,
+                        'location' => ! empty($row[6]) ? trim($row[6]) : null,
                         'code' => $code,
                     ]);
 

@@ -19,6 +19,7 @@ class Equipment extends Model
         'category_id',
         'classification_tkdn',
         'tkdn',
+        'type',
         'period',
         'price',
         'description',

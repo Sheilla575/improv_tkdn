@@ -196,8 +196,8 @@ class MaterialController extends Controller
 
         // Set example data
         $exampleData = [
-            ['Cement Portland', 'Building Material', 'Semen Gresik', 'Dalam Negeri', 'Semen', '30KG', '100.00', '85000', 'Sak', 'https://example.com', 'Portland cement type I', 'Jakarta', 'Peralatan (Jasa Umum)'],
-            ['Steel Bar', 'Steel', 'Krakatau Steel', 'Luar Negeri', 'Semen', '30KG', '100', '150000', 'Ton', 'https://example.com', 'Steel reinforcement bar', 'Bandung', 'Peralatan (Jasa Umum)'],
+            ['Cement Portland', 'Material', 'Semen Gresik', 'Dalam Negeri', 'Semen', '30KG', '100.00', '85000', 'Sak', 'https://example.com', 'Portland cement type I', 'Jakarta', 'Peralatan (Jasa Umum)'],
+            ['Steel Bar', 'Material', 'Krakatau Steel', 'Luar Negeri', 'Semen', '30KG', '100', '150000', 'Ton', 'https://example.com', 'Steel reinforcement bar', 'Bandung', 'Peralatan (Jasa Umum)'],
         ];
         $sheet->fromArray($exampleData, null, 'A2');
 
