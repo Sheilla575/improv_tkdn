@@ -7,6 +7,7 @@ use App\Models\Estimation;
 use App\Models\EstimationItem;
 use App\Models\Hpp;
 use App\Models\HppItem;
+use App\Models\JournalWorker;
 use App\Models\Material;
 use App\Models\Project;
 use App\Models\Worker;
@@ -47,7 +48,7 @@ class HppController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-        public function store(Request $request)
+    public function store(Request $request)
     {
         \Log::info('HPP Store method called', [
             'request_data' => $request->all(),
@@ -78,6 +79,7 @@ class HppController extends Controller
                 'items.*.detail' => 'required|array|min:1',
                 'items.*.detail.*.description' => 'required|string',
                 'items.*.detail.*.estimation_item_id' => 'nullable|exists:estimation_items,id',
+                'items.*.detail.*.item_type' => 'nullable|string|in:worker,material,equipment,journal_worker',
                 'items.*.detail.*.unit_price' => 'required|numeric|min:0',
                 'items.*.detail.*.coefficient' => 'nullable|numeric|min:0',
                 // Accept either 'quantity' or 'grand_total' from frontend
@@ -122,24 +124,24 @@ class HppController extends Controller
             $computedGroups = [];
             foreach ($ahsGroups as $groupIndex => $ahsHeader) {
                 \Log::info("Processing AHS Group #{$groupIndex}", ['header' => $ahsHeader]);
-                
+
                 $details = $itemGroups[$groupIndex]['detail'] ?? [];
                 \Log::info("Group #{$groupIndex} Details", ['count' => count($details)]);
-                
+
                 $unitPriceSum = 0.0;
                 foreach ($details as $detailIndex => $detail) {
                     // Frontend might send 'quantity' or use 'coefficient' as quantity
                     // Also might send pre-calculated 'grand_total'
                     $qty = (float) ($detail['quantity'] ?? $detail['coefficient'] ?? 1);
                     $unitPrice = (float) ($detail['unit_price'] ?? 0);
-                    
+
                     // If grand_total is provided, use it directly
                     if (isset($detail['grand_total'])) {
                         $itemTotal = (float) $detail['grand_total'];
                     } else {
                         $itemTotal = $unitPrice * $qty;
                     }
-                    
+
                     $unitPriceSum += $itemTotal;
                     \Log::info("Group #{$groupIndex} Detail #{$detailIndex}", [
                         'description' => $detail['description'] ?? 'N/A',
@@ -242,20 +244,29 @@ class HppController extends Controller
                 // Buat HPP items per AHS
                 $details = $itemGroups[$groupIndex]['detail'] ?? [];
                 \Log::info("Group #{$groupIndex} Item Details", ['count' => count($details)]);
-                
+
                 foreach ($details as $detailIndex => $detail) {
                     try {
                         $hppAhsid = $createdAhs->id;
                         $estimationItemId = $detail['estimation_item_id'] ?? null;
+                        $itemType = $detail['item_type'] ?? null;
                         $nameAhs = $createdAhs->name_ahs;
                         $description = $detail['description'] ?? '';
-                        $unit = $detail['unit'] ?? ($estimationItemId ? $this->getItemUnit(EstimationItem::find($estimationItemId)) : 'Unit');
-                        $coef = (float) ($detail['coefficient'] ?? 0);
                         
+                        // Determine unit based on item type or estimation item
+                        $unit = $detail['unit'] ?? 'Unit';
+                        if ($estimationItemId) {
+                            $unit = $this->getItemUnit(EstimationItem::find($estimationItemId));
+                        } elseif ($itemType) {
+                            $unit = $this->getUnitForItemType($itemType);
+                        }
+                        
+                        $coef = (float) ($detail['coefficient'] ?? 0);
+
                         // Frontend might send 'quantity' or use 'coefficient' as quantity
                         $qty = (float) ($detail['quantity'] ?? $detail['coefficient'] ?? 1);
                         $unitPrice = (float) ($detail['unit_price'] ?? 0);
-                        
+
                         // If grand_total is provided, use it; otherwise calculate
                         if (isset($detail['grand_total'])) {
                             $totalPrice = (float) $detail['grand_total'];
@@ -266,6 +277,7 @@ class HppController extends Controller
                         \Log::info("Creating Item #{$detailIndex} for Group #{$groupIndex}", [
                             'hpp_ahs_id' => $hppAhsid,
                             'estimation_item_id' => $estimationItemId,
+                            'item_type' => $itemType,
                             'description' => $description,
                             'unit' => $unit,
                             'coefficient' => $coef,
@@ -277,6 +289,7 @@ class HppController extends Controller
                         $hppItem = $hpp->items()->create([
                             'hpp_ahs_id' => $hppAhsid,
                             'estimation_item_id' => $estimationItemId,
+                            'item_type' => $itemType, // Store item type for master data items
                             'name_ahs' => $nameAhs,
                             'description' => $description,
                             'volume' => 1,
@@ -650,14 +663,63 @@ class HppController extends Controller
     }
 
     /**
+     * Get unit for item type
+     */
+    private function getUnitForItemType(string $itemType): string
+    {
+        switch ($itemType) {
+            case 'worker':
+                return 'OH';
+            case 'material':
+                return 'Unit';
+            case 'equipment':
+                return 'Hari';
+            case 'journal_worker':
+                return 'Unit';
+            default:
+                return 'Unit';
+        }
+    }
+
+    /**
      * Get AHS data for AJAX request
      */
+    // public function getAhsDataAjax(Request $request)
+    // {
+    //     $ahsData = $this->getAhsData();
+
+    //     return response()->json($ahsData);
+    // }
     public function getAhsDataAjax(Request $request)
     {
-        $ahsData = $this->getAhsData();
+        try {
+            // Gabungan semua data (AHS + Worker + Material + Equipment)
+            // $allAhsData = $this->getAhsData();
 
-        return response()->json($ahsData);
+            // Data per master (supaya bisa dipakai terpisah)
+            $ahs = Estimation::select('id', 'code', 'title')->withCount('items')->get();
+            $workers = Worker::select('id', 'code', 'name', 'price', 'unit', 'tkdn')->get();
+            $materials = Material::select('id', 'code', 'name', 'price', 'unit', 'tkdn')->get();
+            $equipment = Equipment::select('id', 'code', 'name', 'price', 'tkdn', 'period')->get();
+
+            // Optional: master kategori (jika dibutuhkan di form dropdown)
+            // $categories = Category::select('id', 'name')->get();
+
+            return response()->json([
+                // 'all' => $allAhsData,
+                'ahs' => $ahs,
+                'workers' => $workers,
+                'materials' => $materials,
+                'equipment' => $equipment,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => true,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
+
 
     /**
      * Approve HPP
@@ -809,33 +871,110 @@ class HppController extends Controller
     }
 
     /**
-     * Get AHS data only (filtered by project type)
+     * Get all data (AHS, Worker, Material, Equipment, JournalWorker) filtered by project type
      */
     public function getAhsDataOnly($projectType)
     {
+        $allData = [];
+
         // Get Estimations (AHS) filtered by project type
         $estimations = Estimation::with(['items' => function ($query) use ($projectType) {
             $query->forProjectType($projectType);
         }])->get();
 
-        $ahsData = [];
         foreach ($estimations as $estimation) {
             // Only include estimations that have items matching the project type
             if ($estimation->items->count() > 0) {
-                $ahsData[] = [
+                $allData[] = [
                     'type' => 'ahs',
                     'id' => $estimation->id,
                     'code' => $estimation->code,
                     'title' => $estimation->title,
-                    'description' => $estimation->code . ' - ' . $estimation->title, // data AHS 
-
+                    'description' => $estimation->code . ' - ' . $estimation->title,
                     'category' => 'AHS',
                     'item_count' => $estimation->items->count(),
                 ];
             }
         }
 
-        return response()->json($ahsData);
+        // Get Workers filtered by project type
+        $workers = Worker::with('category')
+            ->whereIn('classification_tkdn', $this->getClassificationsForProjectType($projectType))
+            ->get();
+        foreach ($workers as $worker) {
+            $allData[] = [
+                'type' => 'worker',
+                'id' => $worker->id,
+                'code' => $worker->code,
+                'title' => $worker->name,
+                'description' => $worker->code . ' - ' . $worker->name,
+                'unit_price' => $worker->price,
+                'category' => 'Pekerja',
+                'unit' => $worker->unit,
+                'tkdn' => $worker->tkdn,
+                'classification_tkdn' => $worker->classification_tkdn,
+            ];
+        }
+
+        // Get Materials filtered by project type
+        $materials = Material::with('category')
+            ->whereIn('classification_tkdn', $this->getClassificationsForProjectType($projectType))
+            ->get();
+        foreach ($materials as $material) {
+            $allData[] = [
+                'type' => 'material',
+                'id' => $material->id,
+                'code' => $material->code,
+                'title' => $material->name,
+                'description' => $material->code . ' - ' . $material->name,
+                'unit_price' => $material->price,
+                'category' => 'Material',
+                'unit' => $material->unit,
+                'tkdn' => $material->tkdn,
+                'classification_tkdn' => $material->classification_tkdn,
+            ];
+        }
+
+        // Get Equipment filtered by project type
+        $equipment = Equipment::with('category')
+            ->whereIn('classification_tkdn', $this->getClassificationsForProjectType($projectType))
+            ->get();
+        foreach ($equipment as $eq) {
+            $allData[] = [
+                'type' => 'equipment',
+                'id' => $eq->id,
+                'code' => $eq->code,
+                'title' => $eq->name,
+                'description' => $eq->code . ' - ' . $eq->name,
+                'unit_price' => $eq->price,
+                'category' => 'Peralatan',
+                'period' => $eq->period,
+                'tkdn' => $eq->tkdn,
+                'classification_tkdn' => $eq->classification_tkdn,
+            ];
+        }
+
+        // Get Journal Workers filtered by project type
+        $journalWorkers = JournalWorker::whereIn('classification_tkdn', $this->getClassificationsForProjectType($projectType))
+            ->get();
+        foreach ($journalWorkers as $journalWorker) {
+            $allData[] = [
+                'type' => 'journal_worker',
+                'id' => $journalWorker->id,
+                'code' => 'JW-' . str_pad($journalWorker->id, 4, '0', STR_PAD_LEFT),
+                'title' => $journalWorker->nama_pekerjaan,
+                'description' => $journalWorker->nama_pekerjaan,
+                'unit_price' => $journalWorker->satuan_harga,
+                'category' => 'Journal Worker',
+                'unit' => $journalWorker->satuan_or_durasi,
+                'tkdn' => $journalWorker->tkdn,
+                'classification_tkdn' => $journalWorker->classification_tkdn,
+                'spesifikasi' => $journalWorker->spesifikasi_or_kualifikasi,
+                'negara_asal' => $journalWorker->negara_asal,
+            ];
+        }
+
+        return response()->json($allData);
     }
 
     /**
@@ -871,7 +1010,101 @@ class HppController extends Controller
             'items' => $items,
         ]);
     }
-    
+
+    /**
+     * Get individual master data item for HPP
+     */
+    public function getMasterDataItem($type, $id, $projectType)
+    {
+        try {
+            $item = null;
+            $itemData = null;
+
+            switch ($type) {
+                case 'worker':
+                    $item = Worker::with('category')
+                        ->whereIn('classification_tkdn', $this->getClassificationsForProjectType($projectType))
+                        ->findOrFail($id);
+                    $itemData = [
+                        'id' => $item->id,
+                        'description' => $item->name,
+                        'code' => $item->code,
+                        'category' => 'worker',
+                        'unit_price' => $item->price,
+                        'coefficient' => 1,
+                        'unit' => $item->unit,
+                        'tkdn' => $item->tkdn,
+                        'classification_tkdn' => $item->classification_tkdn,
+                    ];
+                    break;
+
+                case 'material':
+                    $item = Material::with('category')
+                        ->whereIn('classification_tkdn', $this->getClassificationsForProjectType($projectType))
+                        ->findOrFail($id);
+                    $itemData = [
+                        'id' => $item->id,
+                        'description' => $item->name,
+                        'code' => $item->code,
+                        'category' => 'material',
+                        'unit_price' => $item->price,
+                        'coefficient' => 1,
+                        'unit' => $item->unit,
+                        'tkdn' => $item->tkdn,
+                        'classification_tkdn' => $item->classification_tkdn,
+                    ];
+                    break;
+
+                case 'equipment':
+                    $item = Equipment::with('category')
+                        ->whereIn('classification_tkdn', $this->getClassificationsForProjectType($projectType))
+                        ->findOrFail($id);
+                    $itemData = [
+                        'id' => $item->id,
+                        'description' => $item->name,
+                        'code' => $item->code,
+                        'category' => 'equipment',
+                        'unit_price' => $item->price,
+                        'coefficient' => 1,
+                        'unit' => 'Hari',
+                        'tkdn' => $item->tkdn,
+                        'classification_tkdn' => $item->classification_tkdn,
+                        'period' => $item->period,
+                    ];
+                    break;
+
+                case 'journal_worker':
+                    $item = JournalWorker::whereIn('classification_tkdn', $this->getClassificationsForProjectType($projectType))
+                        ->findOrFail($id);
+                    $itemData = [
+                        'id' => $item->id,
+                        'description' => $item->nama_pekerjaan,
+                        'code' => 'JW-' . str_pad($item->id, 4, '0', STR_PAD_LEFT),
+                        'category' => 'journal_worker',
+                        'unit_price' => $item->satuan_harga,
+                        'coefficient' => 1,
+                        'unit' => $item->satuan_or_durasi,
+                        'tkdn' => $item->tkdn,
+                        'classification_tkdn' => $item->classification_tkdn,
+                        'spesifikasi' => $item->spesifikasi_or_kualifikasi,
+                        'negara_asal' => $item->negara_asal,
+                    ];
+                    break;
+
+                default:
+                    return response()->json(['error' => 'Invalid item type'], 400);
+            }
+
+            return response()->json([
+                'item' => $itemData,
+                'type' => $type,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Item not found or not available for this project type'], 404);
+        }
+    }
+
     public function addComment(Request $request, Hpp $hpp)
     {
         $request->validate([
@@ -889,5 +1122,4 @@ class HppController extends Controller
                 ->with('error', 'Gagal menambahkan komentar: ' . $e->getMessage());
         }
     }
-
 }

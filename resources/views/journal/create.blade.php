@@ -11,7 +11,7 @@
                 </svg>
             </a>
             <div>
-                <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Add Material</h1>
+                <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Add Journal Pekerja</h1>
                 <p class="text-gray-600 dark:text-gray-400">Add a new material to the system</p>
             </div>
         </div>
@@ -61,6 +61,8 @@
                                     </svg>
                                 </div>
                                 <input type="text" name="nama_pekerjaan" id="name" class="form-input pl-10 @error('nama_pekerjaan') border-red-500 focus:ring-red-500 focus:border-red-500 @enderror" value="{{ old('nama_pekerjaan') }}" required placeholder="Enter material pekerjaan">
+                                <input type="hidden" name="satuan_or_durasi" id="name" class="form-input pl-10 @error('satuan_or_durasi') border-red-500 focus:ring-red-500 focus:border-red-500 @enderror" value="{{ old('satuan_or_durasi') }}">
+                                <input type="hidden" name="volume" id="name" class="form-input pl-10 @error('volume') border-red-500 focus:ring-red-500 focus:border-red-500 @enderror" value="{{ old('volume') }}">
                             </div>
                             @error('name')
                             <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
@@ -234,7 +236,7 @@
 
                     <!-- Additional Information -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        
+
                     </div>
 
                     <!-- Form Actions -->
@@ -359,14 +361,14 @@
             // Ensure only one decimal separator
             const commaCount = (value.match(/,/g) || []).length;
             const dotCount = (value.match(/\./g) || []).length;
-            
+
             if (commaCount > 1) {
                 value = value.replace(/,([^,]*)$/, '$1');
             }
             if (dotCount > 1) {
                 value = value.replace(/\.([^\.]*)$/, '$1');
             }
-            
+
             this.value = value;
         });
 
@@ -378,7 +380,7 @@
                 const cleanValue = priceValue.replace(/[^\d]/g, '');
                 priceInput.val(cleanValue);
             }
-            
+
             // Convert comma to dot for TKDN
             const tkdnValue = tkdnInput.val();
             if (tkdnValue) {

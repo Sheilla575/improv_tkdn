@@ -90,7 +90,7 @@
                     </thead>
                     <tbody>
                         @php
-                            $no = 1;
+                        $no = 1;
                         @endphp
                         @forelse($journals as $journal)
                         <tr class="cursor-pointer hover:bg-blue-100 dark:hover:bg-gray-600 transition-colors border-b border-gray-100 dark:border-gray-700" data-detail-url="{{ route('master.journal.show', $journal->id) }}" onclick="goToDetail(this, event)">
@@ -102,7 +102,11 @@
                                 <span class="font-medium text-gray-900 dark:text-white">{{ $journal->spesifikasi_or_kualifikasi }}</span>
                             </td>
                             <td>
+                                @if($journal->negara_asal == 'WNI')
                                 <span class="font-medium text-gray-900 dark:text-white badge badge-primary ">{{ $journal->negara_asal }}</span>
+                                @else
+                                <span class="font-medium text-gray-900 dark:text-white badge badge-warning ">{{ $journal->negara_asal }}</span>
+                                @endif
                             </td>
                             <td>
                                 <span class="font-medium text-gray-900 dark:text-white">Rp. {{ number_format($journal->satuan_harga, 0, ',', '.') }}</span>
@@ -125,7 +129,16 @@
                                 @endif
                             </td>
                             <td>
-                                <span class="font-medium text-gray-900 dark:text-white">{{ $journal->tkdn }} %</span>
+                                @if($journal->tkdn)
+                                <div class="flex journals-center">
+                                    <div class="w-16 bg-gray-200 dark:bg-gray-700 rounded-full h-2 mr-2">
+                                        <div class="bg-blue-600 h-2 rounded-full" style="width: {{ $journal->tkdn }}%"></div>
+                                    </div>
+                                    <span class="text-sm font-medium text-gray-900 dark:text-white">{{ $journal->tkdn }}%</span>
+                                </div>
+                                @else
+                                <span class="text-sm text-gray-500 dark:text-gray-400">-</span>
+                                @endif
                             </td>
                             <td>
                                 <span class="font-medium text-gray-900 dark:text-white">{{ $journal->keterangan }}</span>
@@ -264,7 +277,7 @@
                     </svg>
                 </button>
             </div>
-            
+
             <div class="mb-6">
                 <div class="flex items-center mb-3">
                     <svg class="w-8 h-8 text-red-500 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -276,7 +289,7 @@
                     </div>
                 </div>
                 <p class="text-sm text-gray-700 dark:text-gray-300">
-                    This will permanently delete <strong>ALL</strong> material records from the database. 
+                    This will permanently delete <strong>ALL</strong> material records from the database.
                     All data will be lost and cannot be recovered.
                 </p>
             </div>

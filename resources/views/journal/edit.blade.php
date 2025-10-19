@@ -198,7 +198,7 @@
 
                     <!-- Additional Information -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        
+
                     </div>
 
                     <!-- Form Actions -->
@@ -323,14 +323,14 @@
             // Ensure only one decimal separator
             const commaCount = (value.match(/,/g) || []).length;
             const dotCount = (value.match(/\./g) || []).length;
-            
+
             if (commaCount > 1) {
                 value = value.replace(/,([^,]*)$/, '$1');
             }
             if (dotCount > 1) {
                 value = value.replace(/\.([^\.]*)$/, '$1');
             }
-            
+
             this.value = value;
         });
 
@@ -342,7 +342,7 @@
                 const cleanValue = priceValue.replace(/[^\d]/g, '');
                 priceInput.val(cleanValue);
             }
-            
+
             // Convert comma to dot for TKDN
             const tkdnValue = tkdnInput.val();
             if (tkdnValue) {

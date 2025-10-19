@@ -16,8 +16,8 @@ return new class extends Migration
             $table->text('nama_pekerjaan');
             $table->text('spesifikasi_or_kualifikasi');
             $table->string('negara_asal');
-            $table->string('satuan_or_durasi');
-            $table->double('volume');
+            $table->string('satuan_or_durasi')->nullable();
+            $table->double('volume')->nullable();
             $table->double('satuan_harga');
             $table->double('tkdn');
             $table->double('classification_tkdn');

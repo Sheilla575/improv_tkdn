@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ServiceController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -57,6 +58,8 @@ Route::prefix('master')->name('master.')->group(function () {
 // Service Routes - Specific routes must come BEFORE resource route
 Route::get('service/get-hpp-data', [App\Http\Controllers\ServiceController::class, 'getHppData'])->name('service.get-hpp-data');
 Route::resource('service', App\Http\Controllers\ServiceController::class)->middleware('service.cache');
+
+// Service Approval Flow Routes
 Route::post('service/{service}/submit', [App\Http\Controllers\ServiceController::class, 'submit'])->name('service.submit')->middleware('service.cache');
 Route::post('service/{service}/approve', [App\Http\Controllers\ServiceController::class, 'approve'])->name('service.approve')->middleware('service.cache');
 Route::post('service/{service}/comment', [App\Http\Controllers\ServiceController::class, 'addComment'])->name('service.comment');
@@ -71,6 +74,7 @@ Route::post('service/{service}/regenerate-form-34', [App\Http\Controllers\Servic
 Route::get('hpp/get-ahs-data', [App\Http\Controllers\HppController::class, 'getAhsDataAjax'])->name('hpp.get-ahs-data');
 Route::get('hpp/get-ahs-data-only/{projectType}', [App\Http\Controllers\HppController::class, 'getAhsDataOnly'])->name('hpp.get-ahs-data-only');
 Route::get('hpp/get-ahs-items/{estimationId}/{projectType}', [App\Http\Controllers\HppController::class, 'getAhsItems'])->name('hpp.get-ahs-items');
+Route::get('hpp/get-master-data-item/{type}/{id}/{projectType}', [App\Http\Controllers\HppController::class, 'getMasterDataItem'])->name('hpp.get-master-data-item');
 Route::get('hpp/{hpp}/get-estimation-items', [App\Http\Controllers\HppController::class, 'getEstimationItems'])->name('hpp.get-estimation-items');
 
 // HPP Approval Flow Routes
@@ -82,4 +86,8 @@ Route::post('hpp/{hpp}/start-review', [App\Http\Controllers\HppController::class
 
 Route::resource('hpp', App\Http\Controllers\HppController::class);
 
+
+//View Form Table Route
+Route::get('dataservice', [App\Http\Controllers\ServiceController::class, 'dataservice'])->name('dataservice');
+Route::get('about/{id}', [App\Http\Controllers\ServiceController::class, 'detailservice'])->name('detailservice');
 Route::view('support', 'support')->name('support');

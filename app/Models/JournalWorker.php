@@ -19,6 +19,8 @@ class JournalWorker extends Model
         'satuan_harga',
         'tkdn',
         'classification_tkdn',
-        'keterangan'
+        'keterangan',
+        'satuan_or_durasi',
+        'volume',
     ];
 }

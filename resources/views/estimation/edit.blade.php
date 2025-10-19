@@ -183,21 +183,7 @@
                 <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                 @enderror
             </div>
-            <div class="relative">
-                <label for="total" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Total</label>
-                <div class="relative">
-                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <rect x="3" y="4" width="18" height="18" rx="2" />
-                            <path d="M9 8h6M9 12h6M9 16h6" />
-                        </svg>
-                    </span>
-                    <input type="number" name="total" id="total" value="{{ old('total', $estimation->total) }}" class="form-input w-full pl-10 @error('total') border-red-500 @enderror" placeholder="Total" readonly>
-                </div>
-                @error('total')
-                <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                @enderror
-            </div>
+
 
             <div class="relative">
                 <label for="location" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Lokasi</label>
@@ -209,7 +195,7 @@
                         </svg>
                     </span>
                     <select name="location" id="location" class="form-input w-full pl-10 @error('location') border-red-500 @enderror">
-                        <option value="">Pilih Lokasi...</option>
+                        <option value="{{ $estimation->lokasi }}">{{ $estimation->lokasi }}</option>
                     </select>
                 </div>
                 @error('location')
@@ -217,14 +203,14 @@
                 @enderror
             </div>
             <div class="relative">
-                <label for="total_unit_price" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Harga Satuan</label>
+                <label for="total_unit_price" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Total</label>
                 <div class="relative">
                     <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
                         </svg>
                     </span>
-                    <input type="number" name="total_unit_price" id="total_unit_price" value="{{ old('total_unit_price', $estimation->total_unit_price) }}" class="form-input w-full pl-10 @error('total_unit_price') border-red-500 @enderror" placeholder="Harga Satuan" readonly>
+                    <input type="number" name="total_unit_price" id="total_unit_price" value="{{ old('total_unit_price', $estimation->total_unit_price) }}" class="form-input w-full pl-10  dark:text-white bg-gray-100 dark:bg-gray-700 @error('total_unit_price') border-red-500 @enderror" placeholder="Harga Satuan" readonly>
                 </div>
                 @error('total_unit_price')
                 <p class="text-red-500 text-xs mt-1">{{ $message }}</p>

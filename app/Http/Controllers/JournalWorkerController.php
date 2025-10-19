@@ -61,6 +61,8 @@ class JournalWorkerController extends Controller
                 'satuan_harga' => 'required',
                 'tkdn' => 'required',
                 'classification_tkdn' => 'required',
+                'satuan_or_durasi' => 'nullable',
+                'volume' => 'nullable',
                 // 'category_id' => 'required|exists:categories,id',
                 // 'brand' => 'nullable|string',
                 // 'negara_asal' => 'nullable|string',
@@ -74,25 +76,33 @@ class JournalWorkerController extends Controller
                 // 'location' => 'nullable|string',
             ]);
 
+
+
             // Generate code otomatis
             $code = $this->codeGenerationService->generateCode('material');
 
             $data = $request->all();
             $data['code'] = $code;
-            
+
             // Konversi koma ke titik untuk TKDN jika ada
             if (!empty($data['tkdn'])) {
                 $data['tkdn'] = str_replace(',', '.', $data['tkdn']);
             }
 
+
             JournalWorker::create($data);
 
             return redirect()->route('master.journal.index')->with('success', 'Journal created successfully with code: ' . $code);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return back()->withErrors($e->validator)->withInput();
         } catch (\Exception $e) {
-            return back()->withErrors(['error' => 'An error occurred while creating material: ' . $e->getMessage()])->withInput();
+            dd($e->getMessage());
         }
+
+        // catch (\Illuminate\Validation\ValidationException $e) {
+        //     return back()->withErrors($e->validator)->withInput();
+        // } 
+        // catch (\Exception $e) {
+        //     return back()->withErrors(['error' => 'An error occurred while creating material: ' . $e->getMessage()])->withInput();
+        // }
     }
 
     public function show(JournalWorker $journal)
@@ -132,7 +142,7 @@ class JournalWorkerController extends Controller
             ]);
 
             $data = $request->all();
-            
+
             // Konversi koma ke titik untuk TKDN jika ada
             if (!empty($data['tkdn'])) {
                 $data['tkdn'] = str_replace(',', '.', $data['tkdn']);
@@ -166,27 +176,26 @@ class JournalWorkerController extends Controller
     {
         try {
             $totalRecords = Material::count();
-            
+
             if ($totalRecords === 0) {
                 return redirect()->route('master.journal.index')->with('info', 'No material records found to delete.');
             }
 
             // Use database transaction for safety
             DB::beginTransaction();
-            
+
             // Delete all material records
             Material::query()->delete();
-            
+
             // Reset auto increment counter if using MySQL
             DB::statement('ALTER TABLE material AUTO_INCREMENT = 1');
-            
+
             DB::commit();
-            
+
             return redirect()->route('master.journal.index')->with('success', "Successfully deleted {$totalRecords} material records.");
-            
         } catch (\Exception $e) {
             DB::rollback();
-            return back()->withErrors(['error' => 'An error occurred while deleting all materials: '.$e->getMessage()]);
+            return back()->withErrors(['error' => 'An error occurred while deleting all materials: ' . $e->getMessage()]);
         }
     }
 
@@ -200,7 +209,12 @@ class JournalWorkerController extends Controller
 
         // Set headers
         $headers = [
-            'Nama Pekerja', 'Spesifikasi atau Kualifikasi', 'Asal Negara', 'Harga Satuan', 'TKDN', 'Keterangan'
+            'Nama Pekerja',
+            'Spesifikasi atau Kualifikasi',
+            'Asal Negara',
+            'Harga Satuan',
+            'TKDN',
+            'Keterangan'
         ];
         $sheet->fromArray($headers, null, 'A1');
 

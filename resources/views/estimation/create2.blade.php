@@ -182,21 +182,7 @@
                 <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                 @enderror
             </div>
-            <div class="relative">
-                <label for="total" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Total</label>
-                <div class="relative">
-                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <rect x="3" y="4" width="18" height="18" rx="2" />
-                            <path d="M9 8h6M9 12h6M9 16h6" />
-                        </svg>
-                    </span>
-                    <input type="number" name="total" id="total" value="{{ old('total', 0) }}" class="form-input w-full pl-10 @error('total') border-red-500 @enderror" placeholder="Total" readonly>
-                </div>
-                @error('total')
-                <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                @enderror
-            </div>
+
 
             <div class="relative">
                 <label for="location" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Lokasi</label>
@@ -216,14 +202,14 @@
                 @enderror
             </div>
             <div class="relative">
-                <label for="total_unit_price" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Harga Satuan</label>
+                <label for="total_unit_price" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Total</label>
                 <div class="relative">
                     <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-5 w-5 text-gray-400">
+                            <text x="2" y="17" font-size="14" font-family="Arial, sans-serif" fill="currentColor" font-weight="bold">Rp</text>
                         </svg>
                     </span>
-                    <input type="number" name="total_unit_price" id="total_unit_price" value="{{ old('total_unit_price', 0) }}" class="form-input w-full pl-10 @error('total_unit_price') border-red-500 @enderror" placeholder="Harga Satuan" readonly>
+                    <input type="number" name="total_unit_price" id="total_unit_price" value="{{ old('total_unit_price', 0) }}" class="form-input w-full pl-10 dark:text-white bg-gray-100 dark:bg-gray-700 @error('total_unit_price') border-red-500 @enderror" placeholder="Harga Satuan" readonly>
                 </div>
                 @error('total_unit_price')
                 <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
@@ -388,23 +374,23 @@
         <td class="px-3 py-2 item-no dark:text-white">${itemIndex + 1}</td>
         <td class="px-2 py-2">
             <select name="items[${itemIndex}][category]" class="form-input" required onchange="toggleEquipmentInput(this)">
-                        <option value="">Pilih Kategori</option>
+                <option value="">Pilih Kategori</option>
                 <option value="worker" ${item.category === 'worker' ? 'selected' : ''}>Tenaga Kerja</option>
                 <option value="material" ${item.category === 'material' ? 'selected' : ''}>Material</option>
                 <option value="equipment" ${item.category === 'equipment' ? 'selected' : ''}>Peralatan</option>
             </select>
         </td>
-        <td class="px-2 py-2"><input type="text" name="items[${itemIndex}][code]" class="form-input" value="${item.code || ''}"></td>
+        <td class="px-2 py-2"><input type="text" name="items[${itemIndex}][code]" class="form-input dark:text-white bg-gray-100 dark:bg-gray-700" value="${item.code || ''}" readonly></td>
                 <td class="px-2 py-2" data-label="Nama/Peralatan">
                     <input type="hidden" name="items[${itemIndex}][reference_id]" class="reference-id-input" value="${item.reference_id || ''}">
                     <input type="text" name="items[${itemIndex}][equipment_name]" class="form-input equipment-name-input" value="${item.equipment_name || ''}" placeholder="Nama/Peralatan">
                 </td>
                 <td class="px-2 py-2">
-                    <input type="text" name="items[${itemIndex}][unit]" class="form-input unit-input" value="${item.unit || ''}" placeholder="Satuan" readonly>
+                    <input type="text" name="items[${itemIndex}][unit]" class="form-input unit-input bg-gray-100 dark:bg-gray-700" value="${item.unit || ''}" placeholder="Satuan" readonly>
                 </td>
                 <td class="px-2 py-2"><input type="number" name="items[${itemIndex}][coefficient]" class="form-input" value="${item.coefficient || ''}" step="0.00001" oninput="updateTotalPrice(this)" placeholder="Koefisien"></td>
-                <td class="px-2 py-2"><input type="number" name="items[${itemIndex}][unit_price]" class="form-input" value="${item.unit_price || ''}" step="0.00001" oninput="updateTotalPrice(this)" placeholder="Harga Satuan"></td>
-                <td class="px-2 py-2"><input type="number" name="items[${itemIndex}][total_price]" class="form-input" value="${item.total_price || ''}" readonly placeholder="Jumlah Harga"></td>
+                <td class="px-2 py-2"><input type="number" name="items[${itemIndex}][unit_price]" class="form-input dark:text-white bg-gray-100 dark:bg-gray-700" value="${item.unit_price || ''}" step="0.00001" oninput="updateTotalPrice(this)" readonly placeholder="Harga Satuan"></td>
+                <td class="px-2 py-2"><input type="number" name="items[${itemIndex}][total_price]" class="form-input dark:text-white bg-gray-100 dark:bg-gray-700" value="${item.total_price || ''}" readonly placeholder="Jumlah Harga" readonly></td>
         <td class="px-2 py-2">
                     <button type="button" class="btn btn-danger btn-sm" onclick="removeItemRow(this)" title="Hapus Item">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

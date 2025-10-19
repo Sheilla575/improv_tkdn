@@ -40,8 +40,7 @@ class WorkerController extends Controller
 
         $workers = Worker::with('category')
             ->when($search, function ($query, $search) {
-                $query->where('name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
+                $query->where('name', 'like', "%{$search}%");
             })->paginate(10);
         return view('worker.index', compact('workers'));
     }
@@ -122,27 +121,26 @@ class WorkerController extends Controller
     {
         try {
             $totalRecords = Worker::count();
-            
+
             if ($totalRecords === 0) {
                 return redirect()->route('master.worker.index')->with('info', 'No worker records found to delete.');
             }
 
             // Use database transaction for safety
             DB::beginTransaction();
-            
+
             // Delete all worker records
             Worker::query()->delete();
-            
+
             // Reset auto increment counter if using MySQL
             DB::statement('ALTER TABLE workers AUTO_INCREMENT = 1');
-            
+
             DB::commit();
-            
+
             return redirect()->route('master.worker.index')->with('success', "Successfully deleted {$totalRecords} worker records.");
-            
         } catch (\Exception $e) {
             DB::rollback();
-            return back()->withErrors(['error' => 'An error occurred while deleting all workers: '.$e->getMessage()]);
+            return back()->withErrors(['error' => 'An error occurred while deleting all workers: ' . $e->getMessage()]);
         }
     }
 

@@ -70,12 +70,19 @@
                     Click row to view details
                 </p>
             </div>
-           <form method="GET" action="#">
-                <div class="relative">
-                    <input type="text" name="search" class="form-input pl-10"
-                        value="{{ request('search') }}" placeholder="Search Position" />
-                </div>
-            </form>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-3">
+                <form method="GET" action="#">
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-4.35-4.35m1.85-5.15a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                        <input type="text" name="search" class="form-input pl-10" value="{{ request('search') }}" placeholder="Cari Nama Pekerja" />
+                    </div>
+                </form>
+            </div>
         </div>
         <div class="card-body p-0">
             <div class="overflow-x-auto">
@@ -276,7 +283,7 @@
                     </svg>
                 </button>
             </div>
-            
+
             <div class="mb-6">
                 <div class="flex items-center mb-3">
                     <svg class="w-8 h-8 text-red-500 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -288,7 +295,7 @@
                     </div>
                 </div>
                 <p class="text-sm text-gray-700 dark:text-gray-300">
-                    This will permanently delete <strong>ALL</strong> worker records from the database. 
+                    This will permanently delete <strong>ALL</strong> worker records from the database.
                     All data will be lost and cannot be recovered.
                 </p>
             </div>

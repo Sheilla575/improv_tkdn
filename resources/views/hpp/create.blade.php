@@ -98,11 +98,11 @@
                     </div>
                 </div>
 
-                <!-- Data AHS (one-time selector) -->
+                <!-- Data Selector (one-time selector) -->
                 <div id="ahs-form" class="mb-4">
-                    <label class="form-label">Data AHS</label>
+                    <label class="form-label">Pilih Data</label>
                     <div class="relative">
-                        <input type="text" id="ahs-selected" class="form-input" readonly placeholder="Klik untuk pilih data AHS">
+                        <input type="text" id="ahs-selected" class="form-input" readonly placeholder="Klik untuk pilih data AHS atau Master Data">
                         <input type="hidden" id="ahs-selected-id" name="ahs_selected_id">
                         <button type="button" class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600" onclick="openAhsModal(this)">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -216,6 +216,8 @@
                 <input type="number" name="ahs[GROUP_INDEX][total_price]" class="form-input w-full total-price-input" step="0.01" readonly>
             </div>
         </div>
+
+
         <!-- Detail Per Item AHS  -->
         <div class="flex gap-2 mt-5" style="margin-left: 70px;">
             <div class="flex-1">
@@ -255,7 +257,7 @@
     <div class="ahs-group border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-4" data-group-index="GROUP_INDEX">
         <div class="flex items-start justify-between mb-3">
             <div>
-                <div class="text-sm text-gray-500 dark:text-gray-400">AHS</div>
+                <div class="text-sm text-gray-500 dark:text-gray-400 ahs-group-type"></div>
                 <div class="text-lg font-medium text-gray-900 dark:text-white">
                     <!-- <span class="ahs-group-code"></span> -  -->
                     <span class="ahs-group-title"></span>
@@ -267,7 +269,7 @@
         <!-- AHS Header Form (one per group) -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-3">
             <div>
-                <label class="form-label">Data AHS</label>
+                <label class="form-label" class="ahs[GROUP_INDEX][description]">Data Item</label>
                 <input type="text" name="ahs[GROUP_INDEX][description]" class="form-input ahs-group-description">
                 <input type="hidden" name="ahs[GROUP_INDEX][ahs_id]" class="ahs-group-id">
             </div>
@@ -303,9 +305,15 @@
         </div>
 
         <!-- Detail Per Item AHS (dynamic from JSON) -->
-        <div class="space-y-2">
-            <div class="text-sm font-medium text-gray-700 dark:text-gray-300">Detail Per Item AHS</div>
-            <div class="ahs-group-items space-y-2"></div>
+        <div x-data="{ showDetail: true }" class="space-y-2">
+            <!-- <div class="text-sm font-medium text-gray-700 dark:text-gray-300">Detail Per Item AHS</div> -->
+            <button type="button" @click="showDetail = !showDetail" class="text-md font-medium text-gray-700 dark:text-gray-300 hover:text-success-900 dark:focus:text-white transition-colors">
+                <span x-show="!showDetail">Tampilkan Detail Item ▼</span>
+                <span x-show="showDetail">Sembunyikan Detail Item ▲</span>
+            </button>
+            <div x-show="showDetail" class="ahs-group-items space-y-2">
+                <!-- Items will be added here dynamically -->
+            </div>
         </div>
     </div>
 </template>
@@ -316,8 +324,8 @@
         <div class="mt-3">
             <div class="flex items-center justify-between mb-4">
                 <div>
-                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Pilih AHS</h3>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Pilih AHS untuk menambahkan item pekerjaan</p>
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Pilih Data</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Pilih AHS atau Master Data untuk menambahkan item pekerjaan</p>
                 </div>
                 <button type="button" onclick="closeAhsModal()" class="text-gray-400 hover:text-gray-600">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -337,11 +345,12 @@
                         </div>
                         <div class="ml-3">
                             <h3 class="text-sm font-medium text-blue-800 dark:text-blue-200">
-                                AHS Tersedia untuk Proyek
+                                Data Tersedia untuk Proyek
                             </h3>
                             <div class="mt-2 text-sm text-blue-700 dark:text-blue-300">
-                                <p>Menampilkan AHS yang sesuai dengan jenis proyek: <span id="projectTypeInfo" class="font-semibold"></span></p>
-                                <p class="mt-1">Klik AHS untuk menambahkan semua item pekerjaan secara otomatis.</p>
+                                <p>Menampilkan data yang sesuai dengan jenis proyek: <span id="projectTypeInfo" class="font-semibold"></span></p>
+                                <p class="mt-1">• <strong>AHS:</strong> Klik untuk menambahkan semua item pekerjaan secara otomatis</p>
+                                <p class="mt-1">• <strong>Master Data:</strong> Klik untuk menambahkan item individual (Pekerja, Material, Peralatan, Journal Worker)</p>
                             </div>
                         </div>
                     </div>
@@ -349,15 +358,18 @@
             </div>
 
             <div class="mb-4">
-                <input type="text" id="ahsSearch" placeholder="Cari data AHS..." class="form-input w-full">
+                <input type="text" id="ahsSearch" placeholder="Cari data AHS, Pekerja, Material, Peralatan, atau Journal Worker..." class="form-input w-full">
             </div>
 
-            <div id="ahsList" class="space-y-3 max-h-96 overflow-y-auto">
+            <div id="ahsList" class="space-y-3 max-h-100 overflow-y-auto">
                 <!-- AHS data will be loaded here -->
             </div>
         </div>
     </div>
 </div>
+
+<script src="//unpkg.com/alpinejs" defer></script>
+
 
 <script>
     const containerEl = document.getElementById('items-container');
@@ -478,9 +490,15 @@
                 }
                 return response.json();
             })
+
+
             .then(data => {
-                ahsData = data;
-                displayAhsData();
+                console.log('AHS:', data.ahs);
+                console.log('Worker:', data.worker);
+                console.log('Material:', data.material);
+                console.log('Equipment:', data.equipment);
+                allData = data;
+                displayAllData(); // tampilkan semuanya sekaligus (atau pakai tab)
             })
             .catch(error => {
                 console.error('Error:', error);
@@ -488,36 +506,182 @@
             });
     }
 
-    function displayAhsData() {
-        const ahsList = document.getElementById('ahsList');
-        ahsList.innerHTML = '';
+    // function displayAhsData() {
+    //     const ahsList = document.getElementById('ahsList');
+    //     ahsList.innerHTML = '';
 
-        if (ahsData.length === 0) {
-            ahsList.innerHTML = '<div class="text-center py-8 text-gray-500">Tidak ada AHS yang sesuai dengan jenis proyek ini</div>';
-            return;
-        }
+    //     if (ahsData.length === 0) {
+    //         ahsList.innerHTML = '<div class="text-center py-8 text-gray-500">Tidak ada AHS yang sesuai dengan jenis proyek ini</div>';
+    //         return;
+    //     }
 
-        // Get All Data AHS
+    //     // Get All Data AHS
 
-        ahsData.forEach(function(item) {
-            const div = document.createElement('div');
-            div.className = 'p-4 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors';
-            div.onclick = function() {
-                selectAhsForItems(item);
-            };
-            div.innerHTML = `
-            <div class="flex justify-between items-start">
-                <div class="flex-1">
-                    <div class="text-sm text-gray-500 dark:text-gray-400 mt-1">Kode: ${item.description.includes(' - ') ? item.description.split(' - ')[1] : item.description}</div>
-                    <div class="text-sm text-gray-500 dark:text-gray-400">Jumlah Item: ${item.item_count}</div>
-                </div>
-                <div class="text-right ml-4">
-                    <div class="text-xs text-gray-500 dark:text-gray-400">AHS</div>
-                    <div class="text-sm text-blue-600 dark:text-blue-400 font-medium">Klik untuk tambahkan item</div>
-                </div>
-            </div>
-        `;
-            ahsList.appendChild(div);
+    //     ahsData.forEach(function(item) {
+    //         const div = document.createElement('div');
+    //         div.className = 'p-4 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors';
+    //         div.onclick = function() {
+    //             selectAhsForItems(item);
+    //         };
+    //         div.innerHTML = `
+    //         <div class="flex justify-between items-start">
+    //             <div class="flex-1">
+    //                 <div class="text-sm text-gray-500 dark:text-gray-400 mt-1">Kode: ${item.description.includes(' - ') ? item.description.split(' - ')[1] : item.description}</div>
+    //                 <div class="text-sm text-gray-500 dark:text-gray-400">Jumlah Item: ${item.item_count}</div>
+    //             </div>
+    //             <div class="text-right ml-4">
+    //                 <div class="text-xs text-gray-500 dark:text-gray-400">AHS</div>
+    //                 <div class="text-sm text-blue-600 dark:text-blue-400 font-medium">Klik untuk tambahkan item</div>
+    //             </div>
+    //         </div>
+    //     `;
+    //         ahsList.appendChild(div);
+    //     });
+    // }
+
+    function filterDataByType(type) {
+        return allData.filter(item => item.type === type);
+    }
+
+    function displayAllData() {
+        const container = document.getElementById('ahsList');
+        container.innerHTML = '';
+
+        const sections = [{
+                title: 'Analisa Harga Satuan (AHS)',
+                type: 'ahs'
+            },
+            {
+                title: 'Pekerja (Worker)',
+                type: 'worker'
+            },
+            {
+                title: 'Material',
+                type: 'material'
+            },
+            {
+                title: 'Peralatan (Equipment)',
+                type: 'equipment'
+            },
+            {
+                title: 'Journal Worker',
+                type: 'journal_worker'
+            },
+        ];
+
+        sections.forEach(section => {
+            const data = allData.filter(item => item.type === section.type);
+
+            // === Header Section ===
+            const header = document.createElement('div');
+            header.className = 'text-lg font-semibold mt-6 mb-2 text-gray-800 dark:text-gray-100 border-b pb-1';
+            header.textContent = section.title;
+            container.appendChild(header);
+
+            if (data.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'text-gray-500 text-sm italic mb-4';
+                empty.textContent = `Tidak ada data ${section.title}`;
+                container.appendChild(empty);
+                return;
+            }
+
+            // === List Item ===
+            data.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'p-4 border border-gray-200 dark:border-gray-700 rounded-lg mb-2 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition';
+
+                // Tampilkan berdasarkan tipe
+                if (section.type === 'ahs') {
+                    div.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="font-medium text-gray-900 dark:text-gray-100">${item.title}</div>
+                            <div class="text-sm text-gray-500 dark:text-gray-400">Kode: ${item.code}</div>
+                            <div class="text-xs text-gray-400 dark:text-gray-500">Jumlah Item: ${item.item_count}</div>
+                        </div>
+                        <div class="text-right ml-4">
+                            <div class="text-xs text-gray-500 dark:text-gray-400">AHS</div>
+                            <div class="text-sm text-blue-600 dark:text-blue-400 font-medium">Klik untuk tambahkan semua item</div>
+                        </div>
+                    </div>
+                `;
+                } else if (section.type === 'worker') {
+                    div.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="font-medium text-gray-900 dark:text-gray-100">${item.title}</div>
+                            <div class="text-sm text-gray-500 dark:text-gray-400">Kode: ${item.code}</div>
+                            <div class="text-sm text-gray-500 dark:text-gray-400">Upah: Rp ${Number(item.unit_price).toLocaleString()}</div>
+                            <div class="text-xs text-gray-400 dark:text-gray-500">Unit: ${item.unit || '-'}</div>
+                            <div class="text-xs text-gray-400 dark:text-gray-500">TKDN: ${item.tkdn || '-'}</div>
+                        </div>
+                        <div class="text-right ml-4">
+                            <div class="text-xs text-gray-500 dark:text-gray-400">PEKERJA</div>
+                            <div class="text-sm text-green-600 dark:text-green-400 font-medium">Klik untuk tambahkan item</div>
+                        </div>
+                    </div>
+                `;
+                } else if (section.type === 'material') {
+                    div.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="font-medium text-gray-900 dark:text-gray-100">${item.title}</div>
+                            <div class="text-sm text-gray-500 dark:text-gray-400">Kode: ${item.code}</div>
+                            <div class="text-sm text-gray-500 dark:text-gray-400">Harga: Rp ${Number(item.unit_price).toLocaleString()}</div>
+                            <div class="text-xs text-gray-400 dark:text-gray-500">Unit: ${item.unit || '-'}</div>
+                            <div class="text-xs text-gray-400 dark:text-gray-500">TKDN: ${item.tkdn || '-'}</div>
+                        </div>
+                        <div class="text-right ml-4">
+                            <div class="text-xs text-gray-500 dark:text-gray-400">MATERIAL</div>
+                            <div class="text-sm text-orange-600 dark:text-orange-400 font-medium">Klik untuk tambahkan item</div>
+                        </div>
+                    </div>
+                `;
+                } else if (section.type === 'equipment') {
+                    div.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="font-medium text-gray-900 dark:text-gray-100">${item.title}</div>
+                            <div class="text-sm text-gray-500 dark:text-gray-400">Kode: ${item.code}</div>
+                            <div class="text-sm text-gray-500 dark:text-gray-400">Harga: Rp ${Number(item.unit_price).toLocaleString()}</div>
+                            <div class="text-xs text-gray-400 dark:text-gray-500">Periode: ${item.period || '-'}</div>
+                            <div class="text-xs text-gray-400 dark:text-gray-500">TKDN: ${item.tkdn || '-'}</div>
+                        </div>
+                        <div class="text-right ml-4">
+                            <div class="text-xs text-gray-500 dark:text-gray-400">PERALATAN</div>
+                            <div class="text-sm text-purple-600 dark:text-purple-400 font-medium">Klik untuk tambahkan item</div>
+                        </div>
+                    </div>
+                `;
+                } else if (section.type === 'journal_worker') {
+                    div.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="font-medium text-gray-900 dark:text-gray-100">${item.title}</div>
+                            <div class="text-sm text-gray-500 dark:text-gray-400">Kode: ${item.code}</div>
+                            <div class="text-sm text-gray-500 dark:text-gray-400">Harga: Rp ${Number(item.unit_price).toLocaleString()}</div>
+                            <div class="text-xs text-gray-400 dark:text-gray-500">Unit: ${item.unit || '-'}</div>
+                            <div class="text-xs text-gray-400 dark:text-gray-500">TKDN: ${item.tkdn || '-'}</div>
+                        </div>
+                        <div class="text-right ml-4">
+                            <div class="text-xs text-gray-500 dark:text-gray-400">JOURNAL</div>
+                            <div class="text-sm text-indigo-600 dark:text-indigo-400 font-medium">Klik untuk tambahkan item</div>
+                        </div>
+                    </div>
+                `;
+                }
+
+                div.onclick = function() {
+                    if (section.type === 'ahs') {
+                        selectAhsForItems(item); // untuk AHS, gunakan function existing
+                    } else {
+                        selectMasterDataItem(item); // untuk master data individual
+                    }
+                };
+
+                container.appendChild(div);
+            });
         });
     }
 
@@ -543,6 +707,43 @@
             .catch(error => {
                 console.error('Error:', error);
                 alert('Terjadi kesalahan saat memuat data AHS items');
+            });
+    }
+
+    function selectMasterDataItem(item) {
+        // Load individual master data item
+        fetch(`/hpp/get-master-data-item/${item.type}/${item.id}/${currentProjectType}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+
+                // Create a single item array for consistency with AHS structure
+                const singleItem = [data.item];
+
+                // Create a mock AHS object for the individual item
+                const mockAhs = {
+                    id: item.id,
+                    code: item.code,
+                    title: item.title,
+                    description: item.description,
+                    type: item.type
+                };
+
+                // Render as individual item group
+                renderIndividualItemGroup(mockAhs, singleItem);
+
+                // Close modal
+                closeAhsModal();
+
+                // Show success message
+                showNotification(`Berhasil menambahkan ${item.title}`, 'success');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Terjadi kesalahan saat memuat data item');
             });
     }
 
@@ -766,7 +967,7 @@
                     });
                     if (project) {
                         document.getElementById('project-name').textContent = project.name;
-                        document.getElementById('project-type').textContent = getProjectTypeLabel(project.project_type);
+                        // document.getElementById('project-type').textContent = getProjectTypeLabel(project.project_type);
                         document.getElementById('project-company').textContent = project.company || '-';
                         document.getElementById('project-description').textContent = project.description || '-';
                         projectInfo.classList.remove('hidden');
@@ -845,6 +1046,7 @@
         groupEl.querySelector('.ahs-group-title').textContent = ahs.title || ahs.description || '';
         groupEl.querySelector('.ahs-group-description').value = ahs.description || '';
         groupEl.querySelector('.ahs-group-id').value = ahs.id;
+        groupEl.querySelector('.ahs-group-type').value = ahs.type || '';
 
         // Items
         const itemsWrap = groupEl.querySelector('.ahs-group-items');
@@ -880,6 +1082,84 @@
         wireGroupCalculations(appendedGroup);
         // Initial compute
         computeGroupTotals(appendedGroup);
+    }
+
+    function renderIndividualItemGroup(item, items) {
+        const container = document.getElementById('items-container');
+        const tmpl = document.getElementById('ahs-group-template');
+        if (!tmpl) {
+            return;
+        }
+        const clone = tmpl.content.cloneNode(true);
+
+        const groupIndex = container.querySelectorAll('.ahs-group').length;
+        const groupEl = clone.querySelector('.ahs-group');
+        groupEl.setAttribute('data-group-index', groupIndex);
+
+        // Replace GROUP_INDEX in input names
+        const inputs = clone.querySelectorAll('input, select, textarea');
+        inputs.forEach(function(input) {
+            if (input.name) {
+                input.name = input.name.replace('GROUP_INDEX', groupIndex);
+            }
+        });
+
+        // Header - show item type and name
+        const typeLabel = getItemTypeLabel(item.type);
+        groupEl.querySelector('.ahs-group-title').textContent = `${typeLabel}: ${item.title}`;
+        groupEl.querySelector('.ahs-group-description').value = item.description || '';
+        groupEl.querySelector('.ahs-group-id').value = item.id;
+
+        // Items
+        const itemsWrap = groupEl.querySelector('.ahs-group-items');
+        items.forEach(function(it, idx) {
+            const row = document.createElement('div');
+            row.className = 'grid grid-cols-1 md:grid-cols-5 gap-3';
+            row.innerHTML = `
+                <input type="hidden" name="items[${groupIndex}][detail][${idx}][estimation_item_id]" value="${it.id}">
+                <input type="hidden" name="items[${groupIndex}][detail][${idx}][item_type]" value="${item.type}">
+                <div class="md:col-span-2">
+                    <label class="form-label">Uraian Barang/Pekerjaan</label>
+                    <input type="text" class="form-input" name="items[${groupIndex}][detail][${idx}][description]" value="${it.description}" readonly>
+                </div>
+                <div>
+                    <label class="form-label">Koefisien</label>
+                    <input type="number" class="form-input item-coef" name="items[${groupIndex}][detail][${idx}][coefficient]" value="${it.coefficient || 1}" step="0.0001" min="0" readonly>
+                </div>
+                <div>
+                    <label class="form-label">Harga Satuan</label>
+                    <input type="number" class="form-input item-unit-price" name="items[${groupIndex}][detail][${idx}][unit_price]" value="${it.unit_price || 0}" step="0.01" min="0" readonly>
+                </div>
+                <div>
+                    <label class="form-label">Grand Total</label>
+                    <input type="number" class="form-input item-grand-total" name="items[${groupIndex}][detail][${idx}][grand_total]" value="0" step="0.01" min="0" readonly>
+                </div>
+            `;
+            itemsWrap.appendChild(row);
+        });
+
+        container.appendChild(clone);
+
+        // After append, wire up calculations for this group
+        const appendedGroup = container.querySelectorAll('.ahs-group')[container.querySelectorAll('.ahs-group').length - 1];
+        wireGroupCalculations(appendedGroup);
+        // Initial compute
+        computeGroupTotals(appendedGroup);
+    }
+
+    function getItemTypeLabel(type) {
+        switch (type) {
+            case 'worker':
+                return 'Pekerja';
+            case 'material':
+                return 'Material';
+            case 'equipment':
+                return 'Peralatan';
+            case 'journal_worker':
+                return 'Journal Worker';
+            default:
+                return 'Item';
+        }
     }
 
     function wireGroupCalculations(groupEl) {

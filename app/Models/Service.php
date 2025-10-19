@@ -276,4 +276,9 @@ class Service extends Model
             default => 'Unknown Form',
         };
     }
+
+    public function serviceitem()
+    {
+        return $this->hasMany(ServiceItem::class);
+    }
 }

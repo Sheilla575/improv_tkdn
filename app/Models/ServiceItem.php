@@ -11,8 +11,8 @@ class ServiceItem extends Model
     use HasFactory, UsesUlid;
 
     protected $appends = ['estimation_category', 'classification_tkdn'];
-    
-    
+
+
     protected $fillable = [
         'service_id',
         'estimation_item_id',
@@ -60,40 +60,45 @@ class ServiceItem extends Model
 
         // Ambil classification_tkdn berdasarkan kategori dari tabel yang sesuai
         $category = $this->estimationItem->category;
-        
+
         if (in_array($category, ['worker', 'pekerja'])) {
             $worker = $this->estimationItem->worker;
             return $worker ? $worker->classification_tkdn : null;
         }
-        
+
         if ($category === 'material') {
             $material = $this->estimationItem->material;
             return $material ? $material->classification_tkdn : null;
         }
-        
+
         if (in_array($category, ['equipment', 'peralatan', 'elektrika'])) {
             $equipment = $this->estimationItem->equipment;
             return $equipment ? $equipment->classification_tkdn : null;
         }
-        
+
         if ($category === 'hse') {
             // Jika HSE merujuk ke worker table atau equipment table
             $worker = $this->estimationItem->worker;
             if ($worker && $worker->classification_tkdn) {
                 return $worker->classification_tkdn;
             }
-            
+
             $equipment = $this->estimationItem->equipment;
             return $equipment ? $equipment->classification_tkdn : null;
         }
-        
+
         return null;
     }
-    
+
 
     public function service()
     {
         return $this->belongsTo(Service::class);
+    }
+
+    public function estimationItems()
+    {
+        return $this->hasMany(EstimationItem::class, 'id', 'estimation_item_id');
     }
 
     public function calculateCosts()

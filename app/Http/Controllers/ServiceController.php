@@ -4,14 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Models\EstimationItem;
 use App\Models\Hpp;
+use App\Models\HppAhs;
 use App\Models\HppItem;
 use App\Models\Project;
 use App\Models\Service;
 use App\Models\ServiceItem;
 use App\Services\ServiceApprovalService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+
+use function Laravel\Prompts\select;
 
 class ServiceController extends Controller
 {
@@ -2144,5 +2148,36 @@ class ServiceController extends Controller
         } catch (\Exception $e) {
             return back()->with('error', 'Gagal menambahkan komentar: ' . $e->getMessage());
         }
+    }
+
+    public function dataservice()
+    {
+        $services = Service::all();
+
+        return view('dataservice.main', compact('services'));
+    }
+
+    public function detailservice($id)
+    {
+        $service = Service::find($id);
+        $serviceItems = ServiceItem::where('service_id', $id)
+            ->orderBy('tkdn_classification')
+            ->get();
+
+        // Hilangkan "DOC-" dari document_number
+        $hppCode = Str::replaceFirst('DOC-', '', $service->document_number);
+
+        // Ambil data HPP berdasarkan code
+        $hpp = Hpp::where('code', $hppCode)->first();
+        $hppahs = HppAhs::select('volume')
+            ->where('hpp_id', $hpp->id)
+            ->first();
+
+        // dd($hppahs);
+
+        // Grouping otomatis berdasarkan tkdn_classification (3.1 - 3.5, 4.1 - 4.7)
+        $groupedItems = $serviceItems->groupBy('tkdn_classification');
+
+        return view('dataservice.about', compact('serviceItems', 'groupedItems', 'hppahs'));
     }
 }
