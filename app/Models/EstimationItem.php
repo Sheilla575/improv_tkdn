@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Traits\UsesUlid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class EstimationItem extends Model
 {
@@ -51,6 +52,11 @@ class EstimationItem extends Model
     public function equipment()
     {
         return $this->belongsTo(Equipment::class, 'reference_id');
+    }
+
+    public function hppItems(): MorphMany
+    {
+        return $this->morphMany(HppItem::class, 'item');
     }
 
     /**

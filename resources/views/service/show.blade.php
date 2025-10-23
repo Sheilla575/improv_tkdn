@@ -973,7 +973,8 @@
                             </div>
                         </div>
                     </div>
-                </div> <!-- End Log Activity Service Tab -->
+                </div>
+                <!-- End Log Activity Service Tab -->
 
                 <!-- Data Service Tab -->
                 <div id="data-service-tab" class="service-tab-content">
@@ -1087,7 +1088,7 @@
 
                                 $fixedItems31 = [
                                 [
-                                'description' => 'Overhead management',
+                                'description' => 'Overhead',
                                 'amount' => $overheadAmount
                                 ],
                                 [

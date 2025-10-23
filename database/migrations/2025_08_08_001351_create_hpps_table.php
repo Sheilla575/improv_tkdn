@@ -14,7 +14,6 @@ return new class extends Migration
         Schema::create('hpps', function (Blueprint $table) {
             $table->charset = 'utf8mb4';
             $table->collation = 'utf8mb4_unicode_ci';
-
             $table->ulid('id')->primary();
             $table->string('code')->unique();
             $table->ulid('project_id');

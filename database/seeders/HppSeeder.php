@@ -139,22 +139,33 @@ class HppSeeder extends Seeder
                 $unitPrice = $estimationItem->unit_price;
                 $totalPrice = $unitPrice * $volume;
 
+                $categoryMap = [
+                    'worker'    => \App\Models\Worker::class,
+                    'material'  => \App\Models\Material::class,
+                    'equipment' => \App\Models\Equipment::class,
+                ];
+
                 // Get description from master data
                 $description = '';
-                if ($estimationItem->category === 'worker') {
-                    $worker = \App\Models\Worker::find($estimationItem->reference_id);
-                    $description = "HPP Item #{$j} - {$worker->name} ({$classification})";
-                } elseif ($estimationItem->category === 'material') {
-                    $material = \App\Models\Material::find($estimationItem->reference_id);
-                    $description = "HPP Item #{$j} - {$material->name} ({$classification})";
-                } else {
-                    $equipment = \App\Models\Equipment::find($estimationItem->reference_id);
-                    $description = "HPP Item #{$j} - {$equipment->name} ({$classification})";
+                $model = $categoryMap[$estimationItem->category] ?? null;
+                if (!$model) {
+                    continue; // skip kalau category tidak dikenali
                 }
+
+                $reference = $model::find($estimationItem->reference_id);
+                if (!$reference) {
+                    continue; // skip kalau referensi tidak ada
+                }
+
+                // Buat description
+                $description = "HPP Item #{$j} - {$reference->name} ({$classification})";
+
 
                 HppItem::create([
                     'hpp_id' => $hpp->id,
                     'estimation_item_id' => $estimationItem->id,
+                    'item_type' => $model,
+                    'item_id' => $reference->id,
                     'description' => $description,
                     'volume' => $volume,
                     'unit' => 'unit',

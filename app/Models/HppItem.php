@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Traits\UsesUlid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class HppItem extends Model
 {
@@ -15,6 +16,8 @@ class HppItem extends Model
     protected $fillable = [
         'hpp_id',
         'hpp_ahs_id',
+        'item_type',
+        'item_id',
         'estimation_item_id',
         'name_ahs',
         'item_number',
@@ -48,6 +51,11 @@ class HppItem extends Model
     public function estimationItem()
     {
         return $this->belongsTo(EstimationItem::class, 'estimation_item_id');
+    }
+
+    public function item(): MorphTo
+    {
+        return $this->morphTo();
     }
 
     /**

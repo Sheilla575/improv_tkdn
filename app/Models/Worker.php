@@ -6,6 +6,7 @@ use App\Helpers\StringHelper;
 use App\Traits\UsesUlid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Worker extends Model
 {
@@ -47,6 +48,11 @@ class Worker extends Model
             6 => 'Peralatan (Barang Jadi)',
             // 7 => 'Summary',
         ];
+    }
+
+    public function hppItems(): MorphMany
+    {
+        return $this->morphMany(HppItem::class, 'item');
     }
 
     /**

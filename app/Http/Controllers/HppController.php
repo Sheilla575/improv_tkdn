@@ -63,8 +63,8 @@ class HppController extends Controller
                 'ppn_percentage' => 'required|numeric|min:0|max:100',
                 'notes' => 'nullable|string',
 
-                // Header AHS groups
-                'ahs' => 'required|array|min:1',
+                // Header AHS groups - allow any type of data (AHS, worker, material, equipment, journal_worker)
+                'ahs' => 'nullable|array',
                 'ahs.*.description' => 'nullable|string',
                 'ahs.*.volume' => 'nullable|numeric|min:0',
                 'ahs.*.unit' => 'nullable|string',
@@ -72,15 +72,19 @@ class HppController extends Controller
                 'ahs.*.duration_unit' => 'nullable|string',
                 'ahs.*.unit_price' => 'nullable|numeric|min:0',
                 'ahs.*.total_price' => 'nullable|numeric|min:0',
-                'ahs.*.ahs_id' => 'nullable|exists:estimations,id',
+                'ahs.*.coefficient' => 'nullable|numeric|min:0',
+                'ahs.*.item_type' => 'nullable|string|in:ahs,worker,material,equipment,journal_worker',
+                'ahs.*.ahs_id' => 'nullable|string', // Allow empty string for non-AHS types
+                'ahs.*.reference_id' => 'nullable|string', // ID untuk morphTo reference
 
-                // Nested detail items under each group
-                'items' => 'required|array|min:1',
-                'items.*.detail' => 'required|array|min:1',
-                'items.*.detail.*.description' => 'required|string',
+                // Nested detail items under each group - make optional for non-AHS types
+                'items' => 'nullable|array',
+                'items.*.detail' => 'nullable|array',
+                'items.*.detail.*.description' => 'nullable|string',
                 'items.*.detail.*.estimation_item_id' => 'nullable|exists:estimation_items,id',
-                'items.*.detail.*.item_type' => 'nullable|string|in:worker,material,equipment,journal_worker',
-                'items.*.detail.*.unit_price' => 'required|numeric|min:0',
+                'items.*.detail.*.item_type' => 'nullable|string|in:ahs,worker,material,equipment,journal_worker,estimation_item',
+                'items.*.detail.*.reference_id' => 'nullable|string', // ID untuk morphTo reference
+                'items.*.detail.*.unit_price' => 'nullable|numeric|min:0',
                 'items.*.detail.*.coefficient' => 'nullable|numeric|min:0',
                 // Accept either 'quantity' or 'grand_total' from frontend
                 'items.*.detail.*.quantity' => 'nullable|numeric|min:0',
@@ -88,15 +92,16 @@ class HppController extends Controller
             ]);
 
             \Log::info('=== Validation Passed ===', ['validated_data' => $validated]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            \Log::error('=== Validation Failed ===', [
-                'errors' => $e->errors(),
-                'request_data' => $request->all()
-            ]);
-            throw $e;
-        }
+            // } 
+            // catch (\Illuminate\Validation\ValidationException $e) {
+            //     \Log::error('=== Validation Failed ===', [
+            //         'errors' => $e->errors(),
+            //         'request_data' => $request->all()
+            //     ]);
+            //     throw $e;
+            // }
 
-        try {
+            // try {
             DB::beginTransaction();
             \Log::info('=== HPP Store: Transaction Started ===');
 
@@ -118,57 +123,108 @@ class HppController extends Controller
             \Log::info('AHS Groups Received', ['count' => count($ahsGroups), 'data' => $ahsGroups]);
             \Log::info('Item Groups Received', ['count' => count($itemGroups), 'data' => $itemGroups]);
 
+            // Validate that we have at least one item (any type)
+            if (empty($ahsGroups)) {
+                return redirect()->back()->withErrors(['ahs' => 'Minimal harus ada satu item (AHS, Worker, Material, Equipment, atau Journal Worker)'])->withInput();
+            }
+
+            // Debug: Check if we have any non-AHS items
+            $hasNonAHS = false;
+            foreach ($ahsGroups as $groupIndex => $ahsHeader) {
+                $itemType = $ahsHeader['item_type'] ?? 'ahs';
+                if ($itemType !== 'ahs') {
+                    $hasNonAHS = true;
+                    \Log::info("Found non-AHS item", ['groupIndex' => $groupIndex, 'itemType' => $itemType, 'header' => $ahsHeader]);
+                }
+            }
+            \Log::info('Has non-AHS items', ['hasNonAHS' => $hasNonAHS]);
+
             $subTotalHppAhs = 0.0; // sum of each group's total_price
 
-            // Pre-compute per-group unit_price (sum of item grand totals) and total_price
+            // Pre-compute per-group unit_price and total_price based on item type
             $computedGroups = [];
             foreach ($ahsGroups as $groupIndex => $ahsHeader) {
-                \Log::info("Processing AHS Group #{$groupIndex}", ['header' => $ahsHeader]);
+                // Ambil tipe item dan reference_id dari request
+                $itemType = strtolower($ahsHeader['item_type'] ?? 'ahs');
+                $referenceId = $ahsHeader['reference_id'] ?? null;
 
-                $details = $itemGroups[$groupIndex]['detail'] ?? [];
-                \Log::info("Group #{$groupIndex} Details", ['count' => count($details)]);
+                $volume     = (float) ($ahsHeader['volume'] ?? 1);
+                $coefficient = (float) ($ahsHeader['coefficient'] ?? 1);
+                $unitPrice   = (float) ($ahsHeader['unit_price'] ?? 0);
 
+                $groupTotal   = 0.0;
                 $unitPriceSum = 0.0;
-                foreach ($details as $detailIndex => $detail) {
-                    // Frontend might send 'quantity' or use 'coefficient' as quantity
-                    // Also might send pre-calculated 'grand_total'
-                    $qty = (float) ($detail['quantity'] ?? $detail['coefficient'] ?? 1);
-                    $unitPrice = (float) ($detail['unit_price'] ?? 0);
 
-                    // If grand_total is provided, use it directly
-                    if (isset($detail['grand_total'])) {
-                        $itemTotal = (float) $detail['grand_total'];
-                    } else {
-                        $itemTotal = $unitPrice * $qty;
-                    }
-
-                    $unitPriceSum += $itemTotal;
-                    \Log::info("Group #{$groupIndex} Detail #{$detailIndex}", [
-                        'description' => $detail['description'] ?? 'N/A',
-                        'qty' => $qty,
-                        'unitPrice' => $unitPrice,
-                        'grand_total' => $detail['grand_total'] ?? null,
-                        'itemTotal' => $itemTotal
-                    ]);
-                }
-
-                $volume = (float) ($ahsHeader['volume'] ?? 1);
-                $duration = (int) ($ahsHeader['duration'] ?? 1);
-                $groupTotal = $unitPriceSum * $volume * $duration;
-                $subTotalHppAhs += $groupTotal;
-
-                \Log::info("Group #{$groupIndex} Computed", [
-                    'unitPriceSum' => $unitPriceSum,
+                \Log::info("Processing AHS Group #{$groupIndex}", [
+                    'type' => $itemType,
+                    'reference_id' => $referenceId,
                     'volume' => $volume,
-                    'duration' => $duration,
-                    'groupTotal' => $groupTotal
+                    'unit_price' => $unitPrice,
                 ]);
 
-                $computedGroups[$groupIndex] = [
+                // 🔹 Hitung berdasarkan tipe model sebenarnya
+                switch ($itemType) {
+                    case 'ahs':
+                        // Hitung total dari detail AHS
+                        $details = $itemGroups[$groupIndex]['detail'] ?? [];
+                        \Log::info("Group #{$groupIndex} Details", ['count' => count($details)]);
+
+                        foreach ($details as $detailIndex => $detail) {
+                            $qty             = (float) ($detail['quantity'] ?? $detail['coefficient'] ?? 1);
+                            $detailUnitPrice = (float) ($detail['unit_price'] ?? 0);
+                            $itemTotal       = isset($detail['grand_total'])
+                                ? (float) $detail['grand_total']
+                                : $detailUnitPrice * $qty;
+
+                            $unitPriceSum += $itemTotal;
+                        }
+
+                        $duration   = (int) ($ahsHeader['duration'] ?? 1);
+                        $groupTotal = $unitPriceSum * $volume * $duration;
+                        break;
+
+                    case 'journalworker':
+                    case 'journal_worker':
+                        // Journal Worker: volume * unit_price
+                        $groupTotal   = $volume * $unitPrice;
+                        $unitPriceSum = $unitPrice;
+                        break;
+
+                    case 'worker':
+                    case 'material':
+                    case 'equipment':
+                        // Master data langsung (Worker, Material, Equipment)
+                        $groupTotal   = $volume * ($coefficient * $unitPrice);
+                        $unitPriceSum = $coefficient * $unitPrice;
+                        break;
+
+                    default:
+                        // fallback — kalau tipe gak dikenal
+                        \Log::warning("Unknown item type '{$itemType}' on group {$groupIndex}");
+                        break;
+                }
+
+                // Deteksi jika bukan AHS
+                if ($itemType !== 'ahs') {
+                    $hasNonAHS = true;
+                }
+
+                // Simpan hasil
+                $computedGroups[] = [
+                    'index'       => $groupIndex,
+                    'item_type'   => $itemType,
+                    'reference_id' => $referenceId,
+                    'volume'      => $volume,
+                    'unit_price'  => $unitPrice,
+                    'total_price' => $groupTotal,
                     'unit_price_sum' => $unitPriceSum,
                     'group_total' => $groupTotal,
                 ];
+
+                $subTotalHppAhs += $groupTotal;
             }
+
+            \Log::info('Has non-AHS items', ['hasNonAHS' => $hasNonAHS]);
 
             \Log::info('All Groups Computed', ['subTotalHppAhs' => $subTotalHppAhs, 'computedGroups' => $computedGroups]);
 
@@ -215,106 +271,200 @@ class HppController extends Controller
 
             // Buat HPP- AHS & Hpp - Items 
             \Log::info('=== Creating AHS and Items ===');
+
+            $categoryMap = [
+                'worker'         => \App\Models\Worker::class,
+                'material'       => \App\Models\Material::class,
+                'equipment'      => \App\Models\Equipment::class,
+                'ahs'            => \App\Models\Estimation::class,
+                'journal_worker' => \App\Models\JournalWorker::class,
+            ];
+
             foreach ($ahsGroups as $groupIndex => $ahsHeader) {
                 \Log::info("Creating AHS for Group #{$groupIndex}");
-                $unitPriceSum = $computedGroups[$groupIndex]['unit_price_sum'] ?? 0.0;
-                $groupTotal = $computedGroups[$groupIndex]['group_total'] ?? 0.0;
 
-                // Resolve AHS name from description or fallback by ahs_id
+                $unitPriceSum = $computedGroups[$groupIndex]['unit_price_sum'] ?? 0.0;
+                $groupTotal   = $computedGroups[$groupIndex]['group_total'] ?? 0.0;
+
+                // Tentukan nama AHS
                 $nameAhsHeader = $ahsHeader['description'] ?? null;
-                if (! $nameAhsHeader && ! empty($ahsHeader['ahs_id'])) {
-                    $est = Estimation::find($ahsHeader['ahs_id']);
-                    if ($est) {
-                        $nameAhsHeader = $est->code . ' - ' . $est->title;
-                    }
+                if (! $nameAhsHeader && ! empty($ahsHeader['ahs_id']) && is_numeric($ahsHeader['ahs_id'])) {
+                    $nameAhsHeader = 'AHS-' . $ahsHeader['ahs_id'];
+                }
+
+                if (! $nameAhsHeader) {
+                    $itemType  = $ahsHeader['item_type'] ?? 'ahs';
+                    $typeLabel = $this->getItemTypeLabel($itemType);
+                    $nameAhsHeader = $typeLabel . ': ' . ($ahsHeader['description'] ?? 'Item');
                 }
 
                 \Log::info("Group #{$groupIndex} AHS Name Resolved", ['nameAhsHeader' => $nameAhsHeader]);
 
-                $createdAhs = $hpp->ahs()->create([
-                    'name_ahs' =>  $name_hpp_AHS . ' - ' . $nameAhsHeader,
-                    'volume' => $ahsHeader['volume'] ?? 1,
-                    'unit' => $ahsHeader['unit'] ?? 'Unit',
-                    'duration' => $ahsHeader['duration'] ?? 1,
-                    'duration_unit' => $ahsHeader['duration_unit'] ?? 'Hari',
-                    'unit_price' => $unitPriceSum, // sum of detail grand totals
-                    'total_price' => $groupTotal, // volume * unit_price_sum * duration
+                // Hitung harga
+                $itemType   = strtolower($ahsHeader['item_type'] ?? 'ahs');
+                $unitPrice  = max(0, $unitPriceSum);
+                $totalPrice = max(0, $groupTotal);
+
+                if ($itemType !== 'ahs' && $unitPrice == 0) {
+                    $unitPrice = (float) ($ahsHeader['unit_price'] ?? 0);
+                }
+                if ($itemType !== 'ahs' && $totalPrice == 0) {
+                    $totalPrice = (float) ($ahsHeader['total_price'] ?? 0);
+                }
+
+                \Log::info("Creating AHS with values", [
+                    'itemType'     => $itemType,
+                    'unitPrice'    => $unitPrice,
+                    'totalPrice'   => $totalPrice,
+                    'unitPriceSum' => $unitPriceSum,
+                    'groupTotal'   => $groupTotal,
                 ]);
 
-                // Buat HPP items per AHS
+                // 🔹 Buat AHS Header di tabel HPP_AHS
+                $createdAhs = $hpp->ahs()->create([
+                    'name_ahs'      => $name_hpp_AHS . ' - ' . $nameAhsHeader,
+                    'volume'        => $ahsHeader['volume'] ?? 1,
+                    'unit'          => $ahsHeader['unit'] ?? 'Unit',
+                    'duration'      => $ahsHeader['duration'] ?? 1,
+                    'duration_unit' => $ahsHeader['duration_unit'] ?? 'Hari',
+                    'unit_price'    => $unitPrice,
+                    'total_price'   => $totalPrice,
+                ]);
+
+                // 🔹 Ambil detail item dari group
                 $details = $itemGroups[$groupIndex]['detail'] ?? [];
                 \Log::info("Group #{$groupIndex} Item Details", ['count' => count($details)]);
 
+                /**
+                 * =====================================================
+                 * CASE 1: Tidak ada detail → buat item dari header (non-AHS)
+                 * =====================================================
+                 */
+                if (count($details) === 0 && $itemType !== 'ahs') {
+                    $modelClass = $categoryMap[$itemType] ?? null;
+                    $modelId = $ahsHeader['reference_id'] ?? null;
+
+                    if ($modelClass && $modelId && $modelClass::find($modelId)) {
+                        $itemTypeForMorph = $modelClass;
+                        $itemIdForMorph   = $modelId;
+                    } else {
+                        $itemTypeForMorph = \App\Models\Estimation::class;
+                        $itemIdForMorph   = $createdAhs->id;
+                    }
+
+                    $headerCoefficient = (float) ($ahsHeader['coefficient'] ?? 1);
+                    $headerUnitPrice   = (float) ($ahsHeader['unit_price'] ?? 0);
+                    $headerVolume      = (float) ($ahsHeader['volume'] ?? 1);
+                    $unit              = $ahsHeader['unit'] ?? $this->getUnitForItemType($itemType);
+
+                    // Hitung total harga
+                    if ($itemType === 'journal_worker') {
+                        $totalPrice = $headerVolume * $headerUnitPrice;
+                    } else {
+                        $totalPrice = $headerVolume * ($headerCoefficient * $headerUnitPrice);
+                    }
+
+                    $hppItem = $hpp->items()->create([
+                        'hpp_ahs_id'        => $createdAhs->id,
+                        'item_type'         => $itemTypeForMorph,
+                        'item_id'           => $itemIdForMorph,
+                        'description'       => $ahsHeader['description'] ?? '',
+                        'volume'            => $headerVolume,
+                        'unit'              => $unit,
+                        'duration'          => 1,
+                        'duration_unit'     => 'Hari',
+                        'koefisien'         => $headerCoefficient,
+                        'unit_price'        => $headerUnitPrice,
+                        'jumlah'            => $headerCoefficient,
+                        'total_price'       => $totalPrice,
+                    ]);
+
+                    \Log::info("Created Header Item for Group #{$groupIndex}", [
+                        'item_id' => $hppItem->id,
+                        'type'    => $itemTypeForMorph,
+                        'ref_id'  => $itemIdForMorph,
+                    ]);
+
+                    continue;
+                }
+
+                /**
+                 * =====================================================
+                 * CASE 2: Ada detail item → iterasi per detail
+                 * =====================================================
+                 */
                 foreach ($details as $detailIndex => $detail) {
                     try {
-                        $hppAhsid = $createdAhs->id;
-                        $estimationItemId = $detail['estimation_item_id'] ?? null;
-                        $itemType = $detail['item_type'] ?? null;
-                        $nameAhs = $createdAhs->name_ahs;
-                        $description = $detail['description'] ?? '';
-                        
-                        // Determine unit based on item type or estimation item
-                        $unit = $detail['unit'] ?? 'Unit';
-                        if ($estimationItemId) {
-                            $unit = $this->getItemUnit(EstimationItem::find($estimationItemId));
-                        } elseif ($itemType) {
-                            $unit = $this->getUnitForItemType($itemType);
-                        }
-                        
-                        $coef = (float) ($detail['coefficient'] ?? 0);
+                        $itemKey = strtolower($detail['item_type'] ?? '');
+                        $modelClass = $categoryMap[$itemKey] ?? null;
+                        $modelId = $detail['reference_id'] ?? null;
 
-                        // Frontend might send 'quantity' or use 'coefficient' as quantity
+                        if ($modelClass && $modelId && $modelClass::find($modelId)) {
+                            $itemTypeForMorph = $modelClass;
+                            $itemIdForMorph   = $modelId;
+                        } else {
+                            // Fallback untuk AHS atau estimation item
+                            $itemKey = strtolower($detail['item_type'] ?? '');
+                            if ($itemKey === 'estimation_item') {
+                                $estimationItemId = $detail['estimation_item_id'] ?? null;
+                                if ($estimationItemId) {
+                                    $itemTypeForMorph = \App\Models\EstimationItem::class;
+                                    $itemIdForMorph   = $estimationItemId;
+                                } else {
+                                    $itemTypeForMorph = \App\Models\Estimation::class;
+                                    $itemIdForMorph   = $createdAhs->id;
+                                }
+                            } else {
+                                $itemTypeForMorph = \App\Models\Estimation::class;
+                                $itemIdForMorph   = $createdAhs->id;
+                            }
+                        }
+
+                        $description = $detail['description'] ?? '';
+                        $unit = $detail['unit'] ?? 'Unit';
+                        $coef = (float) ($detail['coefficient'] ?? 0);
                         $qty = (float) ($detail['quantity'] ?? $detail['coefficient'] ?? 1);
                         $unitPrice = (float) ($detail['unit_price'] ?? 0);
 
-                        // If grand_total is provided, use it; otherwise calculate
-                        if (isset($detail['grand_total'])) {
-                            $totalPrice = (float) $detail['grand_total'];
-                        } else {
-                            $totalPrice = $unitPrice * $qty;
-                        }
-
-                        \Log::info("Creating Item #{$detailIndex} for Group #{$groupIndex}", [
-                            'hpp_ahs_id' => $hppAhsid,
-                            'estimation_item_id' => $estimationItemId,
-                            'item_type' => $itemType,
-                            'description' => $description,
-                            'unit' => $unit,
-                            'coefficient' => $coef,
-                            'quantity' => $qty,
-                            'unit_price' => $unitPrice,
-                            'total_price' => $totalPrice
-                        ]);
+                        $totalPrice = isset($detail['grand_total'])
+                            ? (float) $detail['grand_total']
+                            : $unitPrice * $qty;
 
                         $hppItem = $hpp->items()->create([
-                            'hpp_ahs_id' => $hppAhsid,
-                            'estimation_item_id' => $estimationItemId,
-                            'item_type' => $itemType, // Store item type for master data items
-                            'name_ahs' => $nameAhs,
-                            'description' => $description,
-                            'volume' => 1,
-                            'unit' => $unit,
-                            'duration' => 1,
-                            'duration_unit' => 'Hari',
-                            'koefisien' => $coef,
-                            'unit_price' => $unitPrice,
-                            'jumlah' => $qty,
-                            'total_price' => $totalPrice,
+                            'hpp_ahs_id'        => $createdAhs->id,
+                            'item_type'          => $itemTypeForMorph,
+                            'item_id'            => $itemIdForMorph,
+                            'estimation_item_id' => $detail['estimation_item_id'] ?? null,
+                            'description'        => $description,
+                            'volume'            => 1,
+                            'unit'              => $unit,
+                            'duration'          => 1,
+                            'duration_unit'     => 'Hari',
+                            'koefisien'         => $coef,
+                            'unit_price'        => $unitPrice,
+                            'jumlah'            => $qty,
+                            'total_price'       => $totalPrice,
                         ]);
 
-                        \Log::info("Item Created Successfully", ['item_id' => $hppItem->id]);
-                    } catch (\Exception $itemError) {
-                        \Log::error("Failed to create HPP item", [
-                            'group' => $groupIndex,
-                            'detail' => $detailIndex,
-                            'error' => $itemError->getMessage(),
-                            'trace' => $itemError->getTraceAsString(),
-                            'detail_data' => $detail
+                        \Log::info("Created Detail Item #{$detailIndex} for Group #{$groupIndex}", [
+                            'item_id'   => $hppItem->id,
+                            'type'      => $itemTypeForMorph,
+                            'ref_id'    => $itemIdForMorph,
+                            'unit_price' => $unitPrice,
+                            'qty'       => $qty,
+                            'total'     => $totalPrice,
                         ]);
-                        throw $itemError;
+                    } catch (\Exception $e) {
+                        \Log::error("Failed to create HPP item", [
+                            'group'  => $groupIndex,
+                            'detail' => $detailIndex,
+                            'error'  => $e->getMessage(),
+                        ]);
+                        throw $e;
                     }
                 }
             }
+
 
             \Log::info('=== All AHS and Items Created Successfully ===');
             DB::commit();
@@ -377,8 +527,8 @@ class HppController extends Controller
             'ppn_percentage' => 'required|numeric|min:0|max:100',
             'notes' => 'nullable|string',
 
-            // Header AHS groups
-            'ahs' => 'required|array|min:1',
+            // Header AHS groups - allow any type of data (AHS, worker, material, equipment, journal_worker)
+            'ahs' => 'nullable|array',
             'ahs.*.description' => 'nullable|string',
             'ahs.*.volume' => 'nullable|numeric|min:0',
             'ahs.*.unit' => 'nullable|string',
@@ -386,16 +536,20 @@ class HppController extends Controller
             'ahs.*.duration_unit' => 'nullable|string',
             'ahs.*.unit_price' => 'nullable|numeric|min:0',
             'ahs.*.total_price' => 'nullable|numeric|min:0',
-            'ahs.*.ahs_id' => 'nullable|exists:estimations,id', // Added ahs_id for fallback
+            'ahs.*.coefficient' => 'nullable|numeric|min:0',
+            'ahs.*.item_type' => 'nullable|string|in:ahs,worker,material,equipment,journal_worker',
+            'ahs.*.ahs_id' => 'nullable|string', // Allow empty string for non-AHS types
 
-            // Nested detail items under each group
-            'items' => 'required|array|min:1',
-            'items.*.detail' => 'required|array|min:1',
-            'items.*.detail.*.description' => 'required|string',
+            // Nested detail items under each group - make optional for non-AHS types
+            'items' => 'nullable|array',
+            'items.*.detail' => 'nullable|array',
+            'items.*.detail.*.description' => 'nullable|string',
             'items.*.detail.*.estimation_item_id' => 'nullable|exists:estimation_items,id',
-            'items.*.detail.*.unit_price' => 'required|numeric|min:0',
-            'items.*.detail.*.quantity' => 'required|numeric|min:0',
+            'items.*.detail.*.item_type' => 'nullable|string|in:worker,material,equipment,journal_worker',
+            'items.*.detail.*.unit_price' => 'nullable|numeric|min:0',
             'items.*.detail.*.coefficient' => 'nullable|numeric|min:0',
+            'items.*.detail.*.quantity' => 'nullable|numeric|min:0',
+            'items.*.detail.*.grand_total' => 'nullable|numeric|min:0',
         ]);
 
         try {
@@ -678,6 +832,27 @@ class HppController extends Controller
                 return 'Unit';
             default:
                 return 'Unit';
+        }
+    }
+
+    /**
+     * Get item type label
+     */
+    private function getItemTypeLabel(string $itemType): string
+    {
+        switch ($itemType) {
+            case 'worker':
+                return 'Pekerja';
+            case 'material':
+                return 'Material';
+            case 'equipment':
+                return 'Peralatan';
+            case 'journal_worker':
+                return 'Journal Worker';
+            case 'ahs':
+                return 'AHS';
+            default:
+                return 'Item';
         }
     }
 
@@ -1099,7 +1274,6 @@ class HppController extends Controller
                 'item' => $itemData,
                 'type' => $type,
             ]);
-
         } catch (\Exception $e) {
             return response()->json(['error' => 'Item not found or not available for this project type'], 404);
         }

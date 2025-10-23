@@ -44,4 +44,22 @@ class Project extends Model
     {
         return $this->hasMany(Hpp::class);
     }
+
+    /**
+     * Get form numbers for a classification based on project type
+     */
+    public static function getFormNumbersForClassification(int $classification, ?string $projectType = null): array
+    {
+
+        return match ($classification) {
+            1 => $projectType === 'tkdn_jasa' ? ['3.1'] : ($projectType === 'tkdn_barang_jasa' ? ['4.3'] : ['3.1', '4.3']), // Overhead & Manajemen
+            2 => $projectType === 'tkdn_jasa' ? ['3.2'] : ($projectType === 'tkdn_barang_jasa' ? ['4.4'] : ['3.2', '4.4']), // Alat Kerja / Fasilitas
+            3 => $projectType === 'tkdn_jasa' ? ['3.3'] : ($projectType === 'tkdn_barang_jasa' ? ['4.5'] : ['3.3', '4.5']), // Konstruksi & Fabrikasi
+            4 => $projectType === 'tkdn_jasa' ? ['3.4'] : ($projectType === 'tkdn_barang_jasa' ? ['4.6'] : ['3.4', '4.6']), // Peralatan (Jasa Umum)
+            5 => $projectType === 'tkdn_barang_jasa' ? ['4.1'] : [], // Material (Bahan Baku)
+            6 => $projectType === 'tkdn_barang_jasa' ? ['4.2'] : [], // Peralatan (Barang Jadi)
+            7 => [], // Summary
+            default => [],
+        };
+    }
 }

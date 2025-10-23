@@ -76,35 +76,43 @@ class ServiceController extends Controller
             $hpps = Hpp::where('project_id', $projectId)
                 ->where('status', 'approved')
                 ->with(['items' => function ($query) use ($project) {
-                    // Filter items berdasarkan project_type melalui master data menggunakan integer classification
-                    if ($project->project_type === 'tkdn_jasa') {
-                        $query->whereHas('estimationItem', function ($estimationQuery) {
-                            $estimationQuery->where(function ($q) {
-                                $q->whereHas('worker', function ($workerQuery) {
-                                    $workerQuery->whereIn('classification_tkdn', [1, 2, 3, 4]); // Overhead & Manajemen, Alat Kerja / Fasilitas, Konstruksi & Fabrikasi, Peralatan (Jasa Umum)
-                                })->orWhereHas('material', function ($materialQuery) {
-                                    $materialQuery->whereIn('classification_tkdn', [1, 2, 3, 4]);
-                                })->orWhereHas('equipment', function ($equipmentQuery) {
-                                    $equipmentQuery->whereIn('classification_tkdn', [1, 2, 3, 4]);
+                    // Filter berdasarkan project type dengan classification_tkdn dari master data
+                    $classifications = $project->project_type === 'tkdn_jasa'
+                        ? [1, 2, 3, 4]
+                        : [1, 2, 3, 4, 5, 6];
+
+                    $query->where(function ($q) use ($classifications) {
+                        // Filter berdasarkan model polymorphic (Worker, Material, Equipment, JournalWorker)
+                        $q->where(function ($wq) use ($classifications) {
+                            $wq->where('item_type', \App\Models\Worker::class)
+                                ->whereHasMorph('item', [\App\Models\Worker::class], function ($workerQuery) use ($classifications) {
+                                    $workerQuery->whereIn('classification_tkdn', $classifications);
                                 });
+                        })
+                            ->orWhere(function ($mq) use ($classifications) {
+                                $mq->where('item_type', \App\Models\Material::class)
+                                    ->whereHasMorph('item', [\App\Models\Material::class], function ($materialQuery) use ($classifications) {
+                                        $materialQuery->whereIn('classification_tkdn', $classifications);
+                                    });
+                            })
+                            ->orWhere(function ($eq) use ($classifications) {
+                                $eq->where('item_type', \App\Models\Equipment::class)
+                                    ->whereHasMorph('item', [\App\Models\Equipment::class], function ($equipmentQuery) use ($classifications) {
+                                        $equipmentQuery->whereIn('classification_tkdn', $classifications);
+                                    });
+                            })
+                            ->orWhere(function ($jq) use ($classifications) {
+                                $jq->where('item_type', \App\Models\JournalWorker::class)
+                                    ->whereHasMorph('item', [\App\Models\JournalWorker::class], function ($journalQuery) use ($classifications) {
+                                        $journalQuery->whereIn('classification_tkdn', $classifications);
+                                    });
                             });
-                        });
-                    } elseif ($project->project_type === 'tkdn_barang_jasa') {
-                        $query->whereHas('estimationItem', function ($estimationQuery) {
-                            $estimationQuery->where(function ($q) {
-                                $q->whereHas('worker', function ($workerQuery) {
-                                    $workerQuery->whereIn('classification_tkdn', [1, 2, 3, 4, 5, 6]); // Semua classification termasuk Material (Bahan Baku) dan Peralatan (Barang Jadi)
-                                })->orWhereHas('material', function ($materialQuery) {
-                                    $materialQuery->whereIn('classification_tkdn', [1, 2, 3, 4, 5, 6]);
-                                })->orWhereHas('equipment', function ($equipmentQuery) {
-                                    $equipmentQuery->whereIn('classification_tkdn', [1, 2, 3, 4, 5, 6]);
-                                });
-                            });
-                        });
-                    }
+                    });
+
                     $query->orderBy('id');
-                }, 'project', 'items.estimationItem'])
+                }, 'project', 'items.item'])
                 ->get();
+
 
             Log::info('HPP query result', [
                 'project_id' => $projectId,
@@ -132,69 +140,99 @@ class ServiceController extends Controller
                         'hpp_code' => $hpp->code,
                         'items_count' => $hpp->items ? $hpp->items->count() : 0,
                     ]);
+                    // Ambil semua item terkait
+                    $items = $hpp->items ?? collect();
+
+                    // Hitung jumlah item valid dan kumpulkan klasifikasi
+                    $classifications = collect();
+
+                    foreach ($items as $item) {
+                        $relatedModel = $item->item; // Relasi morphTo → Worker/Material/Equipment/Ahs
+
+                        if ($relatedModel && property_exists($relatedModel, 'classification_tkdn')) {
+                            if (!empty($relatedModel->classification_tkdn)) {
+                                $classifications->push($relatedModel->classification_tkdn);
+                            }
+                        }
+                        // Jika item-nya AHS, kamu bisa ambil klasifikasi dari detail AHS-nya juga
+                        elseif ($relatedModel instanceof \App\Models\Ahs) {
+                            $detailItems = $relatedModel->hppItems ?? collect();
+                            foreach ($detailItems as $detail) {
+                                $subItem = $detail->item;
+                                if ($subItem && property_exists($subItem, 'classification_tkdn')) {
+                                    $classifications->push($subItem->classification_tkdn);
+                                }
+                            }
+                        }
+                    }
 
                     $hppData[] = [
-                        'id' => $hpp->id,
-                        'code' => $hpp->code ?? 'N/A',
-                        'name_hpp' => $hpp->name_hpp ?? 'N/A',
-                        'total_cost' => $hpp->grand_total ?? 0,
-                        'items_count' => $hpp->items ? $hpp->items->filter(function ($item) use ($hpp) {
-                            $classificationInt = $item->estimationItem->classification_tkdn ?? null;
-                            if (! $classificationInt) {
-                                return false;
-                            }
+                        'id'            => $hpp->id,
+                        'code'          => $hpp->code ?? 'N/A',
+                        'name_hpp'      => $hpp->name_hpp ?? 'N/A',
+                        'total_cost'    => $hpp->grand_total ?? 0,
+                        'items_count'   => $items->count(),
+                        'project_name'  => $hpp->project ? $hpp->project->name : 'N/A',
+                        'project_code'  => $hpp->project ? $hpp->project->code : 'N/A',
+                        'project_type'  => $hpp->project ? $hpp->project->project_type : 'tkdn_jasa',
 
-                            if ($hpp->project->project_type === 'tkdn_jasa') {
-                                $formNumbers = \App\Models\Material::getFormNumbersForClassification($classificationInt, 'tkdn_jasa');
+                        // 🔹 Hitung TKDN Breakdown langsung dari relasi master data
+                        'tkdn_breakdown' => $hpp->items
+                            ? $hpp->items
+                            ->groupBy(function ($item) {
+                                // Ambil classification langsung dari model relasi polymorphic
+                                $related = $item->item; // morphTo: Worker / Material / Equipment / JournalWorker
 
-                                return ! empty($formNumbers);
-                            } elseif ($hpp->project->project_type === 'tkdn_barang_jasa') {
-                                $formNumbers = \App\Models\Material::getFormNumbersForClassification($classificationInt, 'tkdn_barang_jasa');
+                                if ($related && property_exists($related, 'classification_tkdn')) {
+                                    $classificationInt = $related->classification_tkdn;
+                                } else {
+                                    $classificationInt = null;
+                                }
 
-                                return ! empty($formNumbers);
-                            }
+                                return $classificationInt
+                                    ? \App\Helpers\StringHelper::intToClassificationTkdn($classificationInt)
+                                    : 'Unknown';
+                            })
+                            ->map(function ($items, $classification) {
+                                return [
+                                    'classification' => $classification,
+                                    'count'          => $items->count(),
+                                    'total_cost'     => $items->sum('total_price'),
+                                ];
+                            })
+                            ->filter(function ($data, $classification) use ($hpp) {
+                                // ❌ skip Unknown
+                                if ($classification === 'Unknown') {
+                                    return false;
+                                }
 
-                            return true;
-                        })->count() : 0,
-                        'project_name' => $hpp->project ? $hpp->project->name : 'N/A',
-                        'project_code' => $hpp->project ? $hpp->project->code : 'N/A',
-                        'project_type' => $hpp->project ? $hpp->project->project_type : 'tkdn_jasa',
-                        'tkdn_breakdown' => $hpp->items ? $hpp->items->groupBy(function ($item) {
-                            // Get classification from master data through estimation item and convert to string
-                            $classificationInt = $item->estimationItem->classification_tkdn ?? null;
+                                $classificationInt = \App\Helpers\StringHelper::classificationTkdnToInt($classification);
+                                if (! $classificationInt) {
+                                    return false;
+                                }
 
-                            return $classificationInt ? \App\Helpers\StringHelper::intToClassificationTkdn($classificationInt) : 'Unknown';
-                        })->map(function ($items, $classification) {
-                            return [
-                                'classification' => $classification,
-                                'count' => $items->count(),
-                                'total_cost' => $items->sum('total_price'),
-                            ];
-                        })->filter(function ($data, $classification) use ($hpp) {
-                            // Skip 'Unknown' classifications
-                            if ($classification === 'Unknown') {
-                                return false;
-                            }
+                                // 🔹 Filter berdasarkan project type
+                                if ($hpp->project->project_type === 'tkdn_jasa') {
+                                    $formNumbers = \App\Models\Project::getFormNumbersForClassification(
+                                        $classificationInt,
+                                        'tkdn_jasa'
+                                    );
 
-                            // Convert string classification back to integer for getFormNumbersForClassification
-                            $classificationInt = \App\Helpers\StringHelper::classificationTkdnToInt($classification);
-                            if (! $classificationInt) {
-                                return false;
-                            }
+                                    return ! empty($formNumbers);
+                                }
 
-                            // Filter berdasarkan project_type menggunakan mapping yang baru
-                            if ($hpp->project->project_type === 'tkdn_jasa') {
-                                $formNumbers = \App\Models\Material::getFormNumbersForClassification($classificationInt, 'tkdn_jasa');
+                                if ($hpp->project->project_type === 'tkdn_barang_jasa') {
+                                    $formNumbers = \App\Models\Material::getFormNumbersForClassification(
+                                        $classificationInt,
+                                        'tkdn_barang_jasa'
+                                    );
 
-                                return ! empty($formNumbers);
-                            } elseif ($hpp->project->project_type === 'tkdn_barang_jasa') {
-                                $formNumbers = \App\Models\Material::getFormNumbersForClassification($classificationInt, 'tkdn_barang_jasa');
+                                    return ! empty($formNumbers);
+                                }
 
-                                return ! empty($formNumbers);
-                            }
-
-                            return true;
-                        }) : [],
+                                return true;
+                            })
+                            : [],
                     ];
                 } catch (\Exception $itemError) {
                     Log::warning('Error processing HPP item', [
@@ -253,8 +291,40 @@ class ServiceController extends Controller
             'form_category' => $service->form_category,
         ]);
 
-        // Generate form berdasarkan klasifikasi yang ada di master data
-        $formsToGenerate = $service->getFormsToGenerate();
+        // Tentukan daftar form langsung dari data HPP yang dipilih
+        $formsFromHpp = $hpp->items
+            ->pluck('tkdn_classification')
+            ->filter()
+            ->unique()
+            ->values();
+
+        // Siapkan judul form sederhana
+        $formTitles = [
+            '3.1' => 'Overhead & Manajemen',
+            '3.2' => 'Alat / Fasilitas Kerja',
+            '3.3' => 'Konstruksi & Fabrikasi',
+            '3.4' => 'Peralatan (Jasa Umum)',
+            '3.5' => 'Summary',
+            '4.1' => 'Material (Bahan Baku)',
+            '4.2' => 'Peralatan (Barang Jadi)',
+            '4.3' => 'Overhead & Manajemen',
+            '4.4' => 'Alat / Fasilitas Kerja',
+            '4.5' => 'Konstruksi & Fabrikasi',
+            '4.6' => 'Peralatan (Jasa Umum)',
+            '4.7' => 'Summary',
+        ];
+
+        // Jika HPP belum memiliki tkdn_classification pada item, fallback sesuai category
+        if ($formsFromHpp->isEmpty()) {
+            $formsFromHpp = $service->form_category === Service::CATEGORY_TKDN_JASA
+                ? collect(['3.1', '3.2', '3.3', '3.4', '3.5'])
+                : collect(['4.1', '4.2', '4.3', '4.4', '4.5', '4.6', '4.7']);
+        }
+
+        // Bentuk map formCode => formTitle
+        $formsToGenerate = $formsFromHpp->mapWithKeys(function ($code) use ($formTitles) {
+            return [$code => ($formTitles[$code] ?? ('Form ' . $code))];
+        })->toArray();
         $generatedForms = [];
 
         // Hapus semua service items yang ada sebelumnya untuk menghindari duplikasi
@@ -265,41 +335,16 @@ class ServiceController extends Controller
         $service->items()->delete();
 
         foreach ($formsToGenerate as $formCode => $formName) {
-            // PERBAIKAN UTAMA: Pass hpp_id sebagai parameter ketiga untuk filter HPP items spesifik
-            $hppItems = $this->getHppItemsByTkdnClassification($hpp->project_id, $formCode, $hpp->id);
-            $hppItemsCount = $hppItems->count();
+            // Selalu panggil creator; kalau kosong akan dibuat placeholder
+            $this->createTkdnFormFromHpp($service, $hpp, $formCode, $formName);
+            $generatedForms[] = $formCode;
 
-            if ($hppItemsCount > 0) {
-                Log::info("Generating Form {$formCode} - {$formName} from HPP (found {$hppItemsCount} items)", [
-                    'hpp_id' => $hpp->id,
-                    'form_code' => $formCode,
-                    'items_count' => $hppItemsCount,
-                    'unique_hpp_ids' => $hppItems->pluck('hpp_id')->unique()->toArray(), // Verifikasi hanya 1 HPP
-                ]);
-
-                // PERBAIKAN: Pastikan tidak ada duplikasi dengan cek existing items
-                $existingItemsForForm = $service->items()->where('tkdn_classification', $formCode)->count();
-                if ($existingItemsForForm > 0) {
-                    Log::warning("Form {$formCode} already has {$existingItemsForForm} items, skipping generation to avoid duplication");
-                    continue;
-                }
-
-                $this->createTkdnFormFromHpp($service, $hpp, $formCode, $formName);
-                $generatedForms[] = $formCode;
-
-                // Verifikasi item telah dibuat
-                $createdItemsCount = $service->items()->where('tkdn_classification', $formCode)->count();
-                Log::info("Form {$formCode} generation completed", [
-                    'service_items_created' => $createdItemsCount,
-                    'hpp_items_processed' => $hppItemsCount,
-                    'hpp_id' => $hpp->id,
-                ]);
-            } else {
-                Log::info("Skipping Form {$formCode} - {$formName} (no HPP items found for this specific HPP)", [
-                    'hpp_id' => $hpp->id,
-                    'project_id' => $hpp->project_id,
-                ]);
-            }
+            // Verifikasi item telah dibuat
+            $createdItemsCount = $service->items()->where('tkdn_classification', $formCode)->count();
+            Log::info("Form {$formCode} generation completed (direct call)", [
+                'service_items_created' => $createdItemsCount,
+                'hpp_id' => $hpp->id,
+            ]);
         }
 
         // Generate Form 3.5 sebagai rangkuman dari form lainnya (hanya untuk kategori TKDN Jasa)
@@ -416,71 +461,20 @@ class ServiceController extends Controller
             Log::info('Processing HPP item', [
                 'hpp_item_id' => $hppItem->id,
                 'form_number' => $formNumber,
-                'estimation_item_id' => $hppItem->estimation_item_id,
+                // 'estimation_item_id' => $hppItem->estimation_item_id,
                 'description' => $hppItem->description,
                 'volume' => $hppItem->volume,
+                'unit' => $hppItem->unit,
+                'duration_unit' => $hppItem->duration_unit,
+                'koefisien' => $hppItem->koefisien,
+                'unit_price' => $hppItem->unit_price,
+                'total_price' => $hppItem->total_price,
                 'duration' => $hppItem->duration,
                 'total_price' => $hppItem->total_price,
             ]);
 
-            // 2. Ambil data AHS items berdasarkan HPP item (estimation_item)
-            if ($hppItem->estimation_item_id) {
-                $estimationItem = $hppItem->estimationItem;
-                if ($estimationItem) {
-                    // Ambil estimation dari estimation_item
-                    $estimation = $estimationItem->estimation;
-                    $ahsItems = $estimation->items;
-
-                    Log::info('AHS items found', [
-                        'estimation_item_id' => $estimationItem->id,
-                        'estimation_id' => $estimation->id ?? 'N/A',
-                        'ahs_items_count' => $ahsItems ? $ahsItems->count() : 0,
-                    ]);
-
-                    // 3. Insert data AHS items ke table service_items
-                    // PERBAIKAN: Hanya buat 1 service item per HPP item, bukan semua AHS items
-                    // untuk menghindari duplikasi yang menyebabkan looping data
-
-                    // Tentukan TKDN percentage berdasarkan form
-                    $tkdnPercentage = $this->calculateTkdnPercentageForForm($formNumber);
-                    $totalCost = $hppItem->total_price ?? 0;
-                    $domesticCost = $totalCost * ($tkdnPercentage / 100);
-                    $foreignCost = $totalCost - $domesticCost;
-
-                    Log::info('Creating single service item from HPP item', [
-                        'hpp_item_id' => $hppItem->id,
-                        'estimation_item_id' => $estimationItem->id,
-                        'tkdn_percentage' => $tkdnPercentage,
-                        'total_cost' => $totalCost,
-                        'domestic_cost' => $domesticCost,
-                        'foreign_cost' => $foreignCost,
-                    ]);
-
-                    ServiceItem::create([
-                        'service_id' => $service->id,
-                        'estimation_item_id' => $estimationItem->id,
-                        'item_number' => $itemNumber++,
-                        'tkdn_classification' => $formNumber,
-                        'description' => $hppItem->description ?? 'Item ' . $itemNumber,
-                        'qualification' => $this->getQualificationFromHppItem($hppItem),
-                        'nationality' => 'WNI',
-                        'tkdn_percentage' => $tkdnPercentage,
-                        'quantity' => $hppItem->volume ?? 1,
-                        'duration' => $hppItem->duration ?? 1,
-                        'duration_unit' => $hppItem->duration_unit ?? 'ls',
-                        'wage' => $hppItem->total_price ?? 0,
-                        'domestic_cost' => $domesticCost,
-                        'foreign_cost' => $foreignCost,
-                        'total_cost' => $totalCost,
-                    ]);
-                } else {
-                    // Jika tidak ada estimationItem, buat dari HPP item langsung
-                    $this->createServiceItemFromHpp($service, $hppItem, $formNumber, $itemNumber++);
-                }
-            } else {
-                // Jika tidak ada estimation_item_id, buat dari HPP item langsung  
-                $this->createServiceItemFromHpp($service, $hppItem, $formNumber, $itemNumber++);
-            }
+            // 2. Buat service item langsung dari HPP item dengan master data
+            $this->createServiceItemFromHpp($service, $hppItem, $formNumber, $itemNumber++);
         }
 
         // Recalculate totals
@@ -498,16 +492,42 @@ class ServiceController extends Controller
      */
     private function createServiceItemFromHpp(Service $service, $hppItem, string $formNumber, int $itemNumber)
     {
-        $tkdnPercentage = $this->calculateTkdnPercentageForForm($formNumber);
-        $totalCost = $hppItem->total_price ?? 0;
-        $domesticCost = $totalCost * ($tkdnPercentage / 100);
+        // Prefer tkdn_classification from hpp_items if present
+        $tkdnForm = $hppItem->tkdn_classification ?: $formNumber;
+
+        // Derive costs based on unit price, quantity and duration; fallback to total_price
+        $quantity = $hppItem->volume ?? 1;
+        $duration = $hppItem->duration ?? 1;
+        $unitPrice = $hppItem->unit_price ?? 0;
+        $computedTotal = ($unitPrice * $quantity * $duration);
+        $totalCost = ($hppItem->total_price !== null) ? $hppItem->total_price : $computedTotal;
+
+        $tkdnPercentage = $this->calculateTkdnPercentageForForm($tkdnForm);
+        $domesticCost = ($totalCost * $tkdnPercentage) / 100;
         $foreignCost = $totalCost - $domesticCost;
+
+        // Build description and nationality from master data when available
+        $related = $hppItem->item; // morph: Worker/Material/Equipment/JournalWorker
+        $description = $hppItem->description
+            ?? ($related->name ?? ($related->nama_pekerjaan ?? ('Item ' . $itemNumber)));
+
+        $nationality = 'WNI';
+        if ($related) {
+            // Attempt to infer nationality from typical fields
+            $origin = $related->negara_asal ?? null;
+            if ($origin && is_string($origin)) {
+                $nationality = (strtoupper($origin) === 'INDONESIA') ? 'WNI' : 'WNA';
+            }
+        }
 
         Log::info('Creating service item from HPP item directly', [
             'hpp_item_id' => $hppItem->id,
-            'form_number' => $formNumber,
+            'form_number' => $tkdnForm,
             'item_number' => $itemNumber,
             'tkdn_percentage' => $tkdnPercentage,
+            'quantity' => $quantity,
+            'duration' => $duration,
+            'unit_price' => $unitPrice,
             'total_cost' => $totalCost,
         ]);
 
@@ -515,15 +535,15 @@ class ServiceController extends Controller
             'service_id' => $service->id,
             'estimation_item_id' => $hppItem->estimation_item_id ?? null,
             'item_number' => $itemNumber,
-            'tkdn_classification' => $formNumber,
-            'description' => $hppItem->description ?? 'Item ' . $itemNumber,
+            'tkdn_classification' => $tkdnForm,
+            'description' => $description,
             'qualification' => $this->getQualificationFromHppItem($hppItem),
-            'nationality' => 'WNI',
+            'nationality' => $nationality,
             'tkdn_percentage' => $tkdnPercentage,
-            'quantity' => $hppItem->volume ?? 1,
-            'duration' => $hppItem->duration ?? 1,
+            'quantity' => $quantity,
+            'duration' => $duration,
             'duration_unit' => $hppItem->duration_unit ?? 'ls',
-            'wage' => $hppItem->total_price ?? 0,
+            'wage' => $unitPrice,
             'domestic_cost' => $domesticCost,
             'foreign_cost' => $foreignCost,
             'total_cost' => $totalCost,
@@ -772,7 +792,7 @@ class ServiceController extends Controller
                     'provider_address' => $hpp->project->address ?? 'Jl. Sudirman No. 123, Jakarta Pusat',
                     'user_name' => $hpp->project->client ?? 'PT Pembangunan Indonesia',
                     'document_number' => 'DOC-' . $hpp->code,
-                    // 'hpp_id' => $validated['hpp_id'],
+                    'hpp_id' => $validated['hpp_id'],
                     'status' => 'draft',
                 ]);
 
@@ -811,7 +831,7 @@ class ServiceController extends Controller
         // Group items berdasarkan tkdn_classification
         $groupedItems = $optimizedItems->groupBy('tkdn_classification');
 
-        // Ambil HPP items yang sesuai dengan project_type melalui master data
+        // Ambil HPP items yang sesuai dengan project_type melalui master data langsung
         $hppItems = collect();
         if ($service->project_id) {
             // Gunakan integer classification sesuai dengan master data
@@ -822,33 +842,43 @@ class ServiceController extends Controller
             $hppItems = \App\Models\HppItem::whereHas('hpp', function ($query) use ($service) {
                 $query->where('project_id', $service->project_id);
             })
-                ->whereHas('estimationItem', function ($estimationQuery) use ($classifications) {
-                    $estimationQuery->where(function ($q) use ($classifications) {
-                        $q->whereHas('worker', function ($workerQuery) use ($classifications) {
-                            $workerQuery->whereIn('classification_tkdn', $classifications);
-                        })->orWhereHas('material', function ($materialQuery) use ($classifications) {
-                            $materialQuery->whereIn('classification_tkdn', $classifications);
-                        })->orWhereHas('equipment', function ($equipmentQuery) use ($classifications) {
-                            $equipmentQuery->whereIn('classification_tkdn', $classifications);
+                ->where(function ($query) use ($classifications) {
+                    // Filter berdasarkan model polymorphic langsung
+                    $query->where(function ($q) use ($classifications) {
+                        $q->where('item_type', \App\Models\Worker::class)
+                            ->whereHasMorph('item', [\App\Models\Worker::class], function ($workerQuery) use ($classifications) {
+                                $workerQuery->whereIn('classification_tkdn', $classifications);
+                            });
+                    })
+                        ->orWhere(function ($q) use ($classifications) {
+                            $q->where('item_type', \App\Models\Material::class)
+                                ->whereHasMorph('item', [\App\Models\Material::class], function ($materialQuery) use ($classifications) {
+                                    $materialQuery->whereIn('classification_tkdn', $classifications);
+                                });
+                        })
+                        ->orWhere(function ($q) use ($classifications) {
+                            $q->where('item_type', \App\Models\Equipment::class)
+                                ->whereHasMorph('item', [\App\Models\Equipment::class], function ($equipmentQuery) use ($classifications) {
+                                    $equipmentQuery->whereIn('classification_tkdn', $classifications);
+                                });
+                        })
+                        ->orWhere(function ($q) use ($classifications) {
+                            $q->where('item_type', \App\Models\JournalWorker::class)
+                                ->whereHasMorph('item', [\App\Models\JournalWorker::class], function ($journalQuery) use ($classifications) {
+                                    $journalQuery->whereIn('classification_tkdn', $classifications);
+                                });
                         });
-                    });
                 })
-                ->with(['hpp', 'estimation', 'estimationItem.worker', 'estimationItem.material', 'estimationItem.equipment'])
+                ->with(['hpp', 'item']) // Langsung load relasi morphTo
                 ->get();
-
 
             // Group by classification dari master data dengan format string yang benar
             $hppItems = $hppItems->groupBy(function ($item) use ($projectType) {
-                // Get classification dari master data
-                if ($item->estimationItem) {
-                    $classification = null;
-                    if ($item->estimationItem->worker) {
-                        $classification = $item->estimationItem->worker->classification_tkdn;
-                    } elseif ($item->estimationItem->material) {
-                        $classification = $item->estimationItem->material->classification_tkdn;
-                    } elseif ($item->estimationItem->equipment) {
-                        $classification = $item->estimationItem->equipment->classification_tkdn;
-                    }
+                // Get classification langsung dari master data melalui relasi morphTo
+                $relatedItem = $item->item; // morphTo: Worker / Material / Equipment / JournalWorker
+
+                if ($relatedItem && property_exists($relatedItem, 'classification_tkdn')) {
+                    $classification = $relatedItem->classification_tkdn;
 
                     // Convert integer ke string format yang diharapkan view
                     if ($classification) {
@@ -883,10 +913,12 @@ class ServiceController extends Controller
         if ($hppId) {
             $hppModel = $hpp; // Store the HPP model for overhead/margin data
             $hppItemsFromId = \App\Models\HppItem::where('hpp_id', $hppId)
-                ->with(['hpp', 'estimationItem.worker', 'estimationItem.material', 'estimationItem.equipment'])
+                ->with(['hpp', 'item']) // Langsung load relasi morphTo
                 ->get();
 
             $allHppItemsFlat = $hppItemsFromId->map(function ($item) {
+                $relatedItem = $item->item; // morphTo: Worker / Material / Equipment / JournalWorker
+
                 return [
                     'id' => $item->id,
                     'hpp_id' => $item->hpp_id,
@@ -896,9 +928,11 @@ class ServiceController extends Controller
                     'total_price' => $item->total_price,
                     'estimation_item_id' => $item->estimation_item_id,
                     'master_classification' => [
-                        'worker' => ($item->estimationItem && $item->estimationItem->worker) ? $item->estimationItem->worker->classification_tkdn : null,
-                        'material' => ($item->estimationItem && $item->estimationItem->material) ? $item->estimationItem->material->classification_tkdn : null,
-                        'equipment' => ($item->estimationItem && $item->estimationItem->equipment) ? $item->estimationItem->equipment->classification_tkdn : null,
+                        'classification_tkdn' => $relatedItem && property_exists($relatedItem, 'classification_tkdn')
+                            ? $relatedItem->classification_tkdn
+                            : null,
+                        'item_type' => $item->item_type,
+                        'item_name' => $relatedItem ? ($relatedItem->name ?? $relatedItem->nama_pekerjaan ?? 'N/A') : 'N/A',
                     ]
                 ];
             });
@@ -1222,76 +1256,71 @@ class ServiceController extends Controller
 
     private function getHppItemsByTkdnClassification(string $projectId, string $formNumber, ?string $hppId = null): \Illuminate\Database\Eloquent\Collection
     {
-        Log::info('Getting HPP items by form number', [
+        Log::info('Getting HPP items by form number (derived from master classification)', [
             'project_id' => $projectId,
             'form_number' => $formNumber,
             'hpp_id' => $hppId,
         ]);
 
-        // Ambil project untuk mendapatkan project_type
+        // Ambil tipe project untuk pemetaan form
         $project = Project::find($projectId);
         if (! $project) {
-            Log::warning('Project not found for HPP items query', ['project_id' => $projectId]);
-
-            return HppItem::whereRaw('1 = 0')->get(); // Return empty Eloquent Collection
+            return HppItem::whereRaw('1=0')->get();
         }
 
-        // Dapatkan klasifikasi yang sesuai dengan form number dan project type
-        $classifications = $this->getClassificationsForFormNumber($formNumber, $project->project_type);
-
-        if (empty($classifications)) {
-            Log::warning('No classifications found for form number', ['form_number' => $formNumber, 'project_type' => $project->project_type]);
-
-            return HppItem::whereRaw('1 = 0')->get(); // Return empty Eloquent Collection
+        // Dapatkan daftar classification ints yang memetakan ke formNumber ini
+        $classificationInts = [];
+        foreach ([1, 2, 3, 4, 5, 6] as $ci) {
+            $forms = \App\Models\Project::getFormNumbersForClassification($ci, $project->project_type);
+            if (in_array($formNumber, $forms, true)) {
+                $classificationInts[] = $ci;
+            }
         }
 
-        // Konversi string classifications ke integer untuk query
-        $classificationInts = array_map(function ($classification) {
-            return \App\Helpers\StringHelper::classificationTkdnToInt($classification);
-        }, $classifications);
-        $classificationInts = array_filter($classificationInts); // Remove null values
+        if (empty($classificationInts)) {
+            return HppItem::whereRaw('1=0')->get();
+        }
 
-        // Ambil HPP items berdasarkan project_id dan filter dari master data
-        $hppItemsQuery = HppItem::whereHas('hpp', function ($query) use ($projectId) {
-            $query->where('project_id', $projectId);
+        $query = HppItem::whereHas('hpp', function ($q) use ($projectId) {
+            $q->where('project_id', $projectId);
         })
-            ->whereHas('estimationItem', function ($query) use ($classificationInts) {
+            ->where(function ($query) use ($classificationInts) {
                 $query->where(function ($q) use ($classificationInts) {
-                    $q->whereHas('worker', function ($workerQuery) use ($classificationInts) {
-                        $workerQuery->whereIn('classification_tkdn', $classificationInts);
-                    })->orWhereHas('material', function ($materialQuery) use ($classificationInts) {
-                        $materialQuery->whereIn('classification_tkdn', $classificationInts);
-                    })->orWhereHas('equipment', function ($equipmentQuery) use ($classificationInts) {
-                        $equipmentQuery->whereIn('classification_tkdn', $classificationInts);
+                    $q->where('item_type', \App\Models\Worker::class)
+                        ->whereHasMorph('item', [\App\Models\Worker::class], function ($sub) use ($classificationInts) {
+                            $sub->whereIn('classification_tkdn', $classificationInts);
+                        });
+                })
+                    ->orWhere(function ($q) use ($classificationInts) {
+                        $q->where('item_type', \App\Models\Material::class)
+                            ->whereHasMorph('item', [\App\Models\Material::class], function ($sub) use ($classificationInts) {
+                                $sub->whereIn('classification_tkdn', $classificationInts);
+                            });
+                    })
+                    ->orWhere(function ($q) use ($classificationInts) {
+                        $q->where('item_type', \App\Models\Equipment::class)
+                            ->whereHasMorph('item', [\App\Models\Equipment::class], function ($sub) use ($classificationInts) {
+                                $sub->whereIn('classification_tkdn', $classificationInts);
+                            });
+                    })
+                    ->orWhere(function ($q) use ($classificationInts) {
+                        $q->where('item_type', \App\Models\JournalWorker::class)
+                            ->whereHasMorph('item', [\App\Models\JournalWorker::class], function ($sub) use ($classificationInts) {
+                                $sub->whereIn('classification_tkdn', $classificationInts);
+                            });
                     });
-                });
             });
 
-        // Filter by specific HPP if provided
         if ($hppId) {
-            $hppItemsQuery->where('hpp_items.hpp_id', $hppId);
+            $query->where('hpp_id', $hppId);
         }
 
-        $hppItems = $hppItemsQuery->with(['hpp', 'estimationItem.worker', 'estimationItem.material', 'estimationItem.equipment'])
-            ->get();
+        $hppItems = $query->with(['hpp', 'item'])->get();
 
-        Log::info('HPP items query result', [
+        Log::info('HPP items query result (derived)', [
             'project_id' => $projectId,
             'form_number' => $formNumber,
-            'classifications' => $classifications,
             'hpp_items_count' => $hppItems->count(),
-            'hpp_items_ids' => $hppItems->pluck('id')->toArray(),
-            'hpp_items_details' => $hppItems->map(function ($item) {
-                return [
-                    'id' => $item->id,
-                    'description' => $item->description,
-                    'volume' => $item->volume,
-                    'duration' => $item->duration,
-                    'total_price' => $item->total_price,
-                    'estimation_item_id' => $item->estimation_item_id,
-                    'hpp_id' => $item->hpp_id,
-                ];
-            })->toArray(),
         ]);
 
         return $hppItems;
@@ -1309,7 +1338,7 @@ class ServiceController extends Controller
         $allClassifications = [1, 2, 3, 4, 5, 6]; // Semua classification integer
 
         foreach ($allClassifications as $classificationInt) {
-            $formNumbers = \App\Models\Material::getFormNumbersForClassification($classificationInt, $projectType);
+            $formNumbers = \App\Models\Project::getFormNumbersForClassification($classificationInt, $projectType);
             if (in_array($formNumber, $formNumbers)) {
                 $classifications[] = \App\Helpers\StringHelper::intToClassificationTkdn($classificationInt);
             }
@@ -1409,6 +1438,68 @@ class ServiceController extends Controller
     }
 
     /**
+     * Ambil data HPP dan return dalam bentuk referensi untuk ServiceItem
+     */
+    private function getReferenceDataFromHpp(Hpp $hpp)
+    {
+        // Pastikan HPP memiliki relasi items dan master data
+        $hpp->load(['items.item']);
+
+        $referenceItems = collect();
+
+        foreach ($hpp->items as $hppItem) {
+            $masterItem = $hppItem->item;
+
+            $referenceItems->push([
+                'item_type'           => $hppItem->item_type,
+                'item_id'             => $hppItem->item_id,
+                'description'         => $hppItem->description,
+                'unit_price'          => $hppItem->unit_price,
+                'volume'              => $hppItem->volume,
+                'unit'                => $hppItem->unit,
+                'duration'            => $hppItem->duration,
+                'duration_unit'       => $hppItem->duration_unit,
+                'total_price'         => $hppItem->total_price,
+                'tkdn_classification' => $masterItem->classification_tkdn ?? null,
+            ]);
+        }
+
+        return $referenceItems;
+    }
+
+    /**
+     * Ambil harga satuan default berdasarkan tipe item
+     */
+    private function getDefaultUnitPriceForForm($item)
+    {
+        if (! $item) {
+            return 0;
+        }
+
+        // Jika item punya field unit_price langsung, pakai itu
+        if (isset($item->unit_price)) {
+            return (float) $item->unit_price;
+        }
+
+        // Cek berdasarkan tipe master data
+        $type = class_basename($item);
+
+        switch (strtolower($type)) {
+            case 'worker':
+                return (float) ($item->default_rate ?? $item->salary ?? 0);
+            case 'material':
+                return (float) ($item->price ?? $item->unit_price ?? 0);
+            case 'equipment':
+                return (float) ($item->rental_price ?? $item->unit_price ?? 0);
+            case 'ahs':
+                // Jika AHS, ambil rata-rata atau total unit_price-nya
+                return (float) $item->items->avg('unit_price') ?? 0;
+            default:
+                return 0;
+        }
+    }
+
+    /**
      * Create placeholder service items for forms that don't have HPP data
      */
     private function createPlaceholderServiceItems(Service $service, string $formNumber, string $formTitle)
@@ -1441,19 +1532,8 @@ class ServiceController extends Controller
                 break;
         }
 
-        // Tentukan quantity dan duration berdasarkan form number
-        switch ($formNumber) {
-            case '3.1':
-            case '3.2':
-            case '3.3':
-            case '3.4':
-            case '3.5':
-                $quantity = 1;
-                break;
-            default:
-                $quantity = 1;
-                break;
-        }
+        // Tentukan quantity berdasarkan form number
+        $quantity = 1; // Default quantity
 
         switch ($formNumber) {
             case '3.1':
@@ -1491,24 +1571,34 @@ class ServiceController extends Controller
                 break;
         }
 
+        // Ambil data referensi dari HPP jika tersedia
+        $referenceData = $this->getReferenceDataFromHpp($service->hpp, $formNumber);
+
+        // Gunakan data dari HPP jika tersedia, fallback ke default
+        $quantity = $referenceData['quantity'] ?? $quantity;
+        $duration = $referenceData['duration'] ?? $duration;
+        $durationUnit = $referenceData['duration_unit'] ?? $durationUnit;
+        $unitPrice = $referenceData['unit_price'] ?? $this->getDefaultUnitPriceForForm($formNumber);
+        $wage = $unitPrice;
+
         // Hitung costs berdasarkan TKDN percentage
         $tkdnPercentage = $this->calculateTkdnPercentageForForm($formNumber);
-        $wage = 1000000; // Default wage 1 juta
-        $totalCost = $wage * $quantity * $duration;
+        $totalCost = $unitPrice * $quantity * $duration;
         $domesticCost = ($totalCost * $tkdnPercentage) / 100;
         $foreignCost = $totalCost - $domesticCost;
 
-        Log::info('Placeholder service item details', [
+        Log::info('Placeholder service item details (with HPP reference)', [
             'form_number' => $formNumber,
             'qualification' => $qualification,
             'quantity' => $quantity,
             'duration' => $duration,
             'duration_unit' => $durationUnit,
-            'wage' => $wage,
+            'unit_price' => $unitPrice,
             'total_cost' => $totalCost,
             'tkdn_percentage' => $tkdnPercentage,
             'domestic_cost' => $domesticCost,
             'foreign_cost' => $foreignCost,
+            'reference_data' => $referenceData,
         ]);
 
         // Buat placeholder item untuk form yang tidak memiliki data HPP
@@ -1758,32 +1848,25 @@ class ServiceController extends Controller
     }
 
     /**
-     * Get qualification from HPP item based on estimation data
+     * Get qualification from HPP item based on master data directly
      */
     private function getQualificationFromHppItem($hppItem): ?string
     {
-        // Jika ada estimation item, coba ambil qualification dari worker
-        if ($hppItem->estimationItem && $hppItem->estimationItem->estimation) {
-            $estimation = $hppItem->estimationItem->estimation;
+        // Ambil qualification langsung dari master data melalui relasi morphTo
+        $relatedItem = $hppItem->item; // morphTo: Worker / Material / Equipment / JournalWorker
 
-            // Cek apakah ada worker data
-            if ($estimation->items && $estimation->items->isNotEmpty()) {
-                $firstItem = $estimation->items->first();
-
-                // Jika ada worker, ambil qualification
-                if ($firstItem->worker) {
-                    return $firstItem->worker->qualification ?? 'Pekerja';
-                }
-
-                // Jika ada material, ambil kategori
-                if ($firstItem->material) {
-                    return 'Material: ' . $firstItem->material->category ?? 'Umum';
-                }
-
-                // Jika ada equipment, ambil kategori
-                if ($firstItem->equipment) {
-                    return 'Equipment: ' . $firstItem->equipment->category ?? 'Umum';
-                }
+        if ($relatedItem) {
+            switch (get_class($relatedItem)) {
+                case \App\Models\Worker::class:
+                    return $relatedItem->kualifikasi ?? $relatedItem->name ?? 'Pekerja';
+                case \App\Models\Material::class:
+                    return $relatedItem->specification ?? $relatedItem->name ?? 'Material';
+                case \App\Models\Equipment::class:
+                    return $relatedItem->type ?? $relatedItem->name ?? 'Equipment';
+                case \App\Models\JournalWorker::class:
+                    return $relatedItem->spesifikasi_or_kualifikasi ?? $relatedItem->nama_pekerjaan ?? 'Pekerja';
+                default:
+                    return 'Umum';
             }
         }
 
@@ -1884,10 +1967,15 @@ class ServiceController extends Controller
             // Ambil semua HPP items untuk project ini
             $allHppItems = HppItem::whereHas('hpp', function ($query) use ($projectId) {
                 $query->where('project_id', $projectId);
-            })->with(['hpp', 'estimationItem.estimation.items'])->get();
+            })->with(['hpp', 'item'])->get(); // Langsung load relasi morphTo
 
-            // Group by tkdn_classification
-            $groupedItems = $allHppItems->groupBy('tkdn_classification');
+            // Group by classification dari master data
+            $groupedItems = $allHppItems->groupBy(function ($item) {
+                $relatedItem = $item->item; // morphTo: Worker / Material / Equipment / JournalWorker
+                return $relatedItem && property_exists($relatedItem, 'classification_tkdn')
+                    ? $relatedItem->classification_tkdn
+                    : 'unknown';
+            });
 
             // Log untuk debugging
             Log::info('Debug HPP Items for Service', [
@@ -1898,6 +1986,7 @@ class ServiceController extends Controller
                     return [
                         'count' => $items->count(),
                         'items' => $items->map(function ($item) {
+                            $relatedItem = $item->item; // morphTo: Worker / Material / Equipment / JournalWorker
                             return [
                                 'id' => $item->id,
                                 'description' => $item->description,
@@ -1905,10 +1994,13 @@ class ServiceController extends Controller
                                 'duration' => $item->duration,
                                 'total_price' => $item->total_price,
                                 'estimation_item_id' => $item->estimation_item_id,
-                                'has_estimation_item' => $item->estimationItem ? 'Yes' : 'No',
-                                'has_estimation' => $item->estimationItem && $item->estimationItem->estimation ? 'Yes' : 'No',
-                                'ahs_items_count' => $item->estimationItem && $item->estimationItem->estimation ?
-                                    $item->estimationItem->estimation->items->count() : 0,
+                                'item_type' => $item->item_type,
+                                'item_id' => $item->item_id,
+                                'master_data' => $relatedItem ? [
+                                    'class' => get_class($relatedItem),
+                                    'name' => $relatedItem->name ?? $relatedItem->nama_pekerjaan ?? 'N/A',
+                                    'classification_tkdn' => $relatedItem->classification_tkdn ?? null,
+                                ] : null,
                             ];
                         })->toArray(),
                     ];
@@ -1921,11 +2013,12 @@ class ServiceController extends Controller
                     'service_id' => $service->id,
                     'project_id' => $projectId,
                     'total_hpp_items' => $allHppItems->count(),
-                    'grouped_by_classification' => $groupedItems->map(function ($items) {
+                    'grouped_by_classification' => $groupedItems->map(function ($items, $classification) {
                         return [
-                            'classification' => $items->first()->tkdn_classification,
+                            'classification' => $classification,
                             'count' => $items->count(),
                             'items' => $items->map(function ($item) {
+                                $relatedItem = $item->item; // morphTo: Worker / Material / Equipment / JournalWorker
                                 return [
                                     'id' => $item->id,
                                     'description' => $item->description,
@@ -1933,10 +2026,13 @@ class ServiceController extends Controller
                                     'duration' => $item->duration,
                                     'total_price' => $item->total_price,
                                     'estimation_item_id' => $item->estimation_item_id,
-                                    'has_estimation_item' => $item->estimationItem ? 'Yes' : 'No',
-                                    'has_estimation' => $item->estimationItem && $item->estimationItem->estimation ? 'Yes' : 'No',
-                                    'ahs_items_count' => $item->estimationItem && $item->estimationItem->estimation ?
-                                        $item->estimationItem->estimation->items->count() : 0,
+                                    'item_type' => $item->item_type,
+                                    'item_id' => $item->item_id,
+                                    'master_data' => $relatedItem ? [
+                                        'class' => get_class($relatedItem),
+                                        'name' => $relatedItem->name ?? $relatedItem->nama_pekerjaan ?? 'N/A',
+                                        'classification_tkdn' => $relatedItem->classification_tkdn ?? null,
+                                    ] : null,
                                 ];
                             })->toArray(),
                         ];
@@ -2121,10 +2217,38 @@ class ServiceController extends Controller
         $hppItems = HppItem::whereHas('hpp', function ($query) use ($projectId) {
             $query->where('project_id', $projectId);
         })
-            ->whereHas('estimationItem', function ($query) use ($projectType) {
-                $query->forProjectType($projectType);
+            ->where(function ($query) use ($projectType) {
+                // Filter berdasarkan classification_tkdn dari master data
+                $classifications = $projectType === 'tkdn_jasa'
+                    ? [1, 2, 3, 4]
+                    : [1, 2, 3, 4, 5, 6];
+
+                $query->where(function ($q) use ($classifications) {
+                    $q->where('item_type', \App\Models\Worker::class)
+                        ->whereHasMorph('item', [\App\Models\Worker::class], function ($workerQuery) use ($classifications) {
+                            $workerQuery->whereIn('classification_tkdn', $classifications);
+                        });
+                })
+                    ->orWhere(function ($q) use ($classifications) {
+                        $q->where('item_type', \App\Models\Material::class)
+                            ->whereHasMorph('item', [\App\Models\Material::class], function ($materialQuery) use ($classifications) {
+                                $materialQuery->whereIn('classification_tkdn', $classifications);
+                            });
+                    })
+                    ->orWhere(function ($q) use ($classifications) {
+                        $q->where('item_type', \App\Models\Equipment::class)
+                            ->whereHasMorph('item', [\App\Models\Equipment::class], function ($equipmentQuery) use ($classifications) {
+                                $equipmentQuery->whereIn('classification_tkdn', $classifications);
+                            });
+                    })
+                    ->orWhere(function ($q) use ($classifications) {
+                        $q->where('item_type', \App\Models\JournalWorker::class)
+                            ->whereHasMorph('item', [\App\Models\JournalWorker::class], function ($journalQuery) use ($classifications) {
+                                $journalQuery->whereIn('classification_tkdn', $classifications);
+                            });
+                    });
             })
-            ->with(['hpp', 'estimationItem.worker', 'estimationItem.material', 'estimationItem.equipment'])
+            ->with(['hpp', 'item']) // Langsung load relasi morphTo
             ->get();
 
         return $hppItems;
@@ -2167,17 +2291,19 @@ class ServiceController extends Controller
         // Hilangkan "DOC-" dari document_number
         $hppCode = Str::replaceFirst('DOC-', '', $service->document_number);
 
-        // Ambil data HPP berdasarkan code
-        $hpp = Hpp::where('code', $hppCode)->first();
-        $hppahs = HppAhs::select('volume')
-            ->where('hpp_id', $hpp->id)
-            ->first();
-
-        // dd($hppahs);
-
+        // Ambil data HPP berdasarkan code dengan relasi items dan master data
+        $hpp = Hpp::where('code', $hppCode)->with(['items.item'])->first();
+        $hppahs = HppAhs::select('volume')->where('hpp_id', $hpp->id)->first();
+        // dd($hpp->items->count());
         // Grouping otomatis berdasarkan tkdn_classification (3.1 - 3.5, 4.1 - 4.7)
         $groupedItems = $serviceItems->groupBy('tkdn_classification');
 
         return view('dataservice.about', compact('serviceItems', 'groupedItems', 'hppahs'));
+    }
+
+
+    public function formservice()
+    {
+        return view('Service Tab.mainpage');
     }
 }

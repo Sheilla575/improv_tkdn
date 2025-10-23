@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Traits\UsesUlid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use SebastianBergmann\CodeUnit\FunctionUnit;
 
 class ServiceItem extends Model
 {
@@ -42,6 +43,7 @@ class ServiceItem extends Model
         'total_cost' => 'decimal:2',
     ];
 
+
     public function estimationItem()
     {
         return $this->belongsTo(EstimationItem::class, 'estimation_item_id');
@@ -52,48 +54,80 @@ class ServiceItem extends Model
         return $this->estimationItem ? $this->estimationItem->category : null;
     }
 
+    public function getReferenceDataFromHpp($hpp, $formNumber)
+    {
+        $hppItems = HppItem::where('hpp_id', $hpp->id)->where('tkdn_classification', $formNumber)->get();
+        return $hppItems;
+    }
+
+    // ini process Classification yang data per item nya dibaca dari Estimation atau AHS
+    // public function getClassificationTkdnAttribute()
+    // {
+    //     if (!$this->estimationItem) {
+    //         return null;
+    //     }
+
+    //     // Ambil classification_tkdn berdasarkan kategori dari tabel yang sesuai
+    //     $category = $this->estimationItem->category;
+
+    //     if (in_array($category, ['worker', 'pekerja'])) {
+    //         $worker = $this->estimationItem->worker;
+    //         return $worker ? $worker->classification_tkdn : null;
+    //     }
+
+    //     if ($category === 'material') {
+    //         $material = $this->estimationItem->material;
+    //         return $material ? $material->classification_tkdn : null;
+    //     }
+
+    //     if (in_array($category, ['equipment', 'peralatan', 'elektrika'])) {
+    //         $equipment = $this->estimationItem->equipment;
+    //         return $equipment ? $equipment->classification_tkdn : null;
+    //     }
+
+    //     if ($category === 'hse') {
+    //         // Jika HSE merujuk ke worker table atau equipment table
+    //         $worker = $this->estimationItem->worker;
+    //         if ($worker && $worker->classification_tkdn) {
+    //             return $worker->classification_tkdn;
+    //         }
+
+    //         $equipment = $this->estimationItem->equipment;
+    //         return $equipment ? $equipment->classification_tkdn : null;
+    //     }
+
+    //     return null;
+    // }
+
     public function getClassificationTkdnAttribute()
     {
-        if (!$this->estimationItem) {
-            return null;
+        $related = $this->item;
+
+        // Jika item punya field classification_tkdn langsung
+        if ($related && property_exists($related, 'classification_tkdn')) {
+            return $related->classification_tkdn;
         }
 
-        // Ambil classification_tkdn berdasarkan kategori dari tabel yang sesuai
-        $category = $this->estimationItem->category;
+        // Jika item berupa AHS, ambil klasifikasi dari detail-nya
+        if ($related instanceof \App\Models\estimationItem) {
+            $detailItems = $related->hppItems ?? collect();
 
-        if (in_array($category, ['worker', 'pekerja'])) {
-            $worker = $this->estimationItem->worker;
-            return $worker ? $worker->classification_tkdn : null;
-        }
-
-        if ($category === 'material') {
-            $material = $this->estimationItem->material;
-            return $material ? $material->classification_tkdn : null;
-        }
-
-        if (in_array($category, ['equipment', 'peralatan', 'elektrika'])) {
-            $equipment = $this->estimationItem->equipment;
-            return $equipment ? $equipment->classification_tkdn : null;
-        }
-
-        if ($category === 'hse') {
-            // Jika HSE merujuk ke worker table atau equipment table
-            $worker = $this->estimationItem->worker;
-            if ($worker && $worker->classification_tkdn) {
-                return $worker->classification_tkdn;
+            foreach ($detailItems as $detail) {
+                $subItem = $detail->item;
+                if ($subItem && property_exists($subItem, 'classification_tkdn')) {
+                    return $subItem->classification_tkdn;
+                }
             }
-
-            $equipment = $this->estimationItem->equipment;
-            return $equipment ? $equipment->classification_tkdn : null;
         }
 
+        // fallback jika tidak ditemukan
         return null;
     }
 
 
     public function service()
     {
-        return $this->belongsTo(Service::class);
+        return $this->belongsTo(Service::class, 'id');
     }
 
     public function estimationItems()

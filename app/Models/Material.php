@@ -6,6 +6,7 @@ use App\Helpers\StringHelper;
 use App\Traits\UsesUlid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Material extends Model
 {
@@ -54,6 +55,11 @@ class Material extends Model
         ];
     }
 
+    public function hppItems(): MorphMany
+    {
+        return $this->morphMany(HppItem::class, 'item');
+    }
+
     /**
      * Get classification TKDN as string
      */
@@ -70,22 +76,7 @@ class Material extends Model
         $this->attributes['classification_tkdn'] = StringHelper::classificationTkdnToInt($value);
     }
 
-    /**
-     * Get form numbers for a classification based on project type
-     */
-    public static function getFormNumbersForClassification(int $classification, ?string $projectType = null): array
-    {
-        return match ($classification) {
-            1 => $projectType === 'tkdn_jasa' ? ['3.1'] : ($projectType === 'tkdn_barang_jasa' ? ['4.3'] : ['3.1', '4.3']), // Overhead & Manajemen
-            2 => $projectType === 'tkdn_jasa' ? ['3.2'] : ($projectType === 'tkdn_barang_jasa' ? ['4.4'] : ['3.2', '4.4']), // Alat Kerja / Fasilitas
-            3 => $projectType === 'tkdn_jasa' ? ['3.3'] : ($projectType === 'tkdn_barang_jasa' ? ['4.5'] : ['3.3', '4.5']), // Konstruksi & Fabrikasi
-            4 => $projectType === 'tkdn_jasa' ? ['3.4'] : ($projectType === 'tkdn_barang_jasa' ? ['4.6'] : ['3.4', '4.6']), // Peralatan (Jasa Umum)
-            5 => $projectType === 'tkdn_barang_jasa' ? ['4.1'] : [], // Material (Bahan Baku)
-            6 => $projectType === 'tkdn_barang_jasa' ? ['4.2'] : [], // Peralatan (Barang Jadi)
-            7 => [], // Summary
-            default => [],
-        };
-    }
+
 
     public function getRouteKeyName()
     {

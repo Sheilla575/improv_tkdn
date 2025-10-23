@@ -16,6 +16,7 @@ class Hpp extends Model
         'code',
         'project_id',
         'name_hpp',
+        'hpp_type',
         'sub_total_hpp',
         'overhead_percentage',
         'overhead_amount',

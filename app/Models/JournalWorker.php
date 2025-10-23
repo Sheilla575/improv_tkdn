@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Helpers\StringHelper;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class JournalWorker extends Model
 {
@@ -23,4 +24,10 @@ class JournalWorker extends Model
         'satuan_or_durasi',
         'volume',
     ];
+
+
+    public function hppItems(): MorphMany
+    {
+        return $this->morphMany(HppItem::class, 'item');
+    }
 }

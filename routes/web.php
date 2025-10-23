@@ -89,5 +89,6 @@ Route::resource('hpp', App\Http\Controllers\HppController::class);
 
 //View Form Table Route
 Route::get('dataservice', [App\Http\Controllers\ServiceController::class, 'dataservice'])->name('dataservice');
+Route::get('formservice', [ServiceController::class, 'formservice'])->name('formservice');
 Route::get('about/{id}', [App\Http\Controllers\ServiceController::class, 'detailservice'])->name('detailservice');
 Route::view('support', 'support')->name('support');

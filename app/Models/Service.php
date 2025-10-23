@@ -87,6 +87,11 @@ class Service extends Model
         return $this->belongsTo(Project::class);
     }
 
+    public function hpp()
+    {
+        return $this->belongsTo(Hpp::class, 'hpp_id');
+    }
+
     public function items()
     {
         return $this->hasMany(ServiceItem::class);
@@ -217,7 +222,7 @@ class Service extends Model
         $projectType = $this->project ? $this->project->project_type : null;
 
         foreach ($classifications as $classification) {
-            $formNumbers = \App\Models\Material::getFormNumbersForClassification($classification, $projectType);
+            $formNumbers = Project::getFormNumbersForClassification($classification, $projectType);
             foreach ($formNumbers as $formNumber) {
                 $forms[$formNumber] = $this->getFormTitleForNumber($formNumber);
             }
@@ -236,19 +241,14 @@ class Service extends Model
         // Get classifications from HPP items through estimation items
         $hppItems = \App\Models\HppItem::whereHas('hpp', function ($query) {
             $query->where('project_id', $this->project_id);
-        })->with('estimationItem.worker', 'estimationItem.material', 'estimationItem.equipment')->get();
+        })->with('item')->get(); // <— ini kuncinya!
+
 
         foreach ($hppItems as $hppItem) {
-            if ($hppItem->estimationItem) {
-                if ($hppItem->estimationItem->worker && $hppItem->estimationItem->worker->classification_tkdn) {
-                    $classifications->push($hppItem->estimationItem->worker->classification_tkdn);
-                }
-                if ($hppItem->estimationItem->material && $hppItem->estimationItem->material->classification_tkdn) {
-                    $classifications->push($hppItem->estimationItem->material->classification_tkdn);
-                }
-                if ($hppItem->estimationItem->equipment && $hppItem->estimationItem->equipment->classification_tkdn) {
-                    $classifications->push($hppItem->estimationItem->equipment->classification_tkdn);
-                }
+            $item = $hppItem->item; // ini bisa Worker / Material / Equipment
+
+            if ($item && property_exists($item, 'classification_tkdn') && $item->classification_tkdn) {
+                $classifications->push($item->classification_tkdn);
             }
         }
 
@@ -279,6 +279,6 @@ class Service extends Model
 
     public function serviceitem()
     {
-        return $this->hasMany(ServiceItem::class);
+        return $this->hasMany(ServiceItem::class, 'service_id');
     }
 }

@@ -252,26 +252,28 @@
     </div>
 </template>
 
-<!-- Template for add item  -->
+<!-- Template for AHS Group -->
 <template id="ahs-group-template">
     <div class="ahs-group border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-4" data-group-index="GROUP_INDEX">
         <div class="flex items-start justify-between mb-3">
             <div>
-                <div class="text-sm text-gray-500 dark:text-gray-400 ahs-group-type"></div>
+                <div class="text-sm text-gray-500 dark:text-gray-400">AHS</div>
                 <div class="text-lg font-medium text-gray-900 dark:text-white">
-                    <!-- <span class="ahs-group-code"></span> -  -->
                     <span class="ahs-group-title"></span>
                 </div>
             </div>
             <button type="button" class="btn btn-outline text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" onclick="removeAhsGroup(this)">Hapus</button>
         </div>
 
-        <!-- AHS Header Form (one per group) -->
+        <input type="hidden" name="ahs[GROUP_INDEX][item_type]" value="ahs">
+        <input type="hidden" name="ahs[GROUP_INDEX][ahs_id]" class="ahs-group-id">
+        <input type="hidden" name="ahs[GROUP_INDEX][reference_id]" class="ahs-group-reference-id">
+
+        <!-- Form untuk AHS -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-3">
             <div>
-                <label class="form-label" class="ahs[GROUP_INDEX][description]">Data Item</label>
-                <input type="text" name="ahs[GROUP_INDEX][description]" class="form-input ahs-group-description">
-                <input type="hidden" name="ahs[GROUP_INDEX][ahs_id]" class="ahs-group-id">
+                <label class="form-label">Data AHS</label>
+                <input type="text" name="ahs[GROUP_INDEX][description]" class="form-input ahs-group-description" readonly>
             </div>
             <div>
                 <label class="form-label">Volume <span class="text-red-500">*</span></label>
@@ -305,14 +307,97 @@
         </div>
 
         <!-- Detail Per Item AHS (dynamic from JSON) -->
-        <div x-data="{ showDetail: true }" class="space-y-2">
-            <!-- <div class="text-sm font-medium text-gray-700 dark:text-gray-300">Detail Per Item AHS</div> -->
-            <button type="button" @click="showDetail = !showDetail" class="text-md font-medium text-gray-700 dark:text-gray-300 hover:text-success-900 dark:focus:text-white transition-colors">
+        <div x-data="{ showDetail: true }" class="detail-section space-y-2">
+            <button type="button" @click="showDetail = !showDetail" class="detail-toggle text-md font-medium text-gray-700 dark:text-gray-300 hover:text-success-900 dark:focus:text-white transition-colors">
                 <span x-show="!showDetail">Tampilkan Detail Item ▼</span>
                 <span x-show="showDetail">Sembunyikan Detail Item ▲</span>
             </button>
             <div x-show="showDetail" class="ahs-group-items space-y-2">
                 <!-- Items will be added here dynamically -->
+            </div>
+        </div>
+    </div>
+</template>
+
+<!-- Template for Item Group (Worker, Material, Equipment) -->
+<template id="item-group-template">
+    <div class="item-group border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-4" data-group-index="GROUP_INDEX">
+        <div class="flex items-start justify-between mb-3">
+            <div>
+                <div class="text-sm text-gray-500 dark:text-gray-400 item-group-type"></div>
+                <div class="text-lg font-medium text-gray-900 dark:text-white">
+                    <span class="item-group-title"></span>
+                </div>
+            </div>
+            <button type="button" class="btn btn-outline text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" onclick="removeItemGroup(this)">Hapus</button>
+        </div>
+
+        <input type="hidden" name="ahs[GROUP_INDEX][item_type]" class="item-group-item-type">
+        <input type="hidden" name="ahs[GROUP_INDEX][ahs_id]" value="">
+        <input type="hidden" name="ahs[GROUP_INDEX][reference_id]" class="item-group-reference-id">
+
+        <!-- Form untuk Item -->
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-3">
+            <div>
+                <label class="form-label">Data Item</label>
+                <input type="text" name="ahs[GROUP_INDEX][description]" class="form-input item-group-description" readonly>
+            </div>
+            <div>
+                <label class="form-label">Koefisien <span class="text-red-500">*</span></label>
+                <input type="number" name="ahs[GROUP_INDEX][coefficient]" class="form-input item-group-coefficient" step="0.0001" min="0" value="1">
+            </div>
+            <div>
+                <label class="form-label">Volume <span class="text-red-500">*</span></label>
+                <input type="number" name="ahs[GROUP_INDEX][volume]" class="form-input item-group-volume" step="0.01" min="0" value="1">
+            </div>
+            <div>
+                <label class="form-label">Harga Satuan (Rp)</label>
+                <input type="number" name="ahs[GROUP_INDEX][unit_price]" class="form-input item-group-unit-price" step="0.01" min="0" readonly>
+            </div>
+            <div>
+                <label class="form-label">Total (Rp)</label>
+                <input type="number" name="ahs[GROUP_INDEX][total_price]" class="form-input item-group-total-price" step="0.01" readonly>
+                <small class="text-gray-500">Volume × (Koefisien × Harga Satuan)</small>
+            </div>
+        </div>
+    </div>
+</template>
+
+<!-- Template for Journal Worker Group -->
+<template id="journal-group-template">
+    <div class="journal-group border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-4" data-group-index="GROUP_INDEX">
+        <div class="flex items-start justify-between mb-3">
+            <div>
+                <div class="text-sm text-gray-500 dark:text-gray-400">Journal Worker</div>
+                <div class="text-lg font-medium text-gray-900 dark:text-white">
+                    <span class="journal-group-title"></span>
+                </div>
+            </div>
+            <button type="button" class="btn btn-outline text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" onclick="removeJournalGroup(this)">Hapus</button>
+        </div>
+
+        <input type="hidden" name="ahs[GROUP_INDEX][item_type]" value="journal_worker">
+        <input type="hidden" name="ahs[GROUP_INDEX][ahs_id]" value="">
+        <input type="hidden" name="ahs[GROUP_INDEX][reference_id]" class="journal-group-reference-id">
+
+        <!-- Form untuk Journal Worker -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+            <div>
+                <label class="form-label">Data Journal</label>
+                <input type="text" name="ahs[GROUP_INDEX][description]" class="form-input journal-group-description" readonly>
+            </div>
+            <div>
+                <label class="form-label">Volume <span class="text-red-500">*</span></label>
+                <input type="number" name="ahs[GROUP_INDEX][volume]" class="form-input journal-group-volume" step="0.01" min="0" value="1">
+            </div>
+            <div>
+                <label class="form-label">Harga Satuan (Rp)</label>
+                <input type="number" name="ahs[GROUP_INDEX][unit_price]" class="form-input journal-group-unit-price" step="0.01" min="0" readonly>
+            </div>
+            <div class="md:col-span-3">
+                <label class="form-label">Total (Rp)</label>
+                <input type="number" name="ahs[GROUP_INDEX][total_price]" class="form-input journal-group-total-price" step="0.01" readonly>
+                <small class="text-gray-500">Volume × Harga Satuan</small>
             </div>
         </div>
     </div>
@@ -732,8 +817,12 @@
                     type: item.type
                 };
 
-                // Render as individual item group
-                renderIndividualItemGroup(mockAhs, singleItem);
+                // Render as appropriate group based on type
+                if (item.type === 'journal_worker') {
+                    renderJournalGroup(mockAhs, singleItem);
+                } else {
+                    renderItemGroup(mockAhs, singleItem);
+                }
 
                 // Close modal
                 closeAhsModal();
@@ -912,25 +1001,6 @@
 
     // Form validation
     function validateForm() {
-        // Require at least one AHS group
-        const groups = containerEl.querySelectorAll('.ahs-group');
-        if (groups.length === 0) {
-            alert('Minimal pilih satu data AHS.');
-            return false;
-        }
-
-        // Optional: ensure at least one detail row exists overall
-        let hasAnyDetail = false;
-        groups.forEach(function(group) {
-            const details = group.querySelectorAll('.ahs-group-items > div');
-            if (details.length > 0) {
-                hasAnyDetail = true;
-            }
-        });
-        if (!hasAnyDetail) {
-            alert('Data AHS harus memiliki minimal satu detail item.');
-            return false;
-        }
 
         // Optional lightweight numeric sanity for the first group
         const firstGroup = groups[0];
@@ -1029,7 +1099,7 @@
         }
         const clone = tmpl.content.cloneNode(true);
 
-        const groupIndex = container.querySelectorAll('.ahs-group').length;
+        const groupIndex = container.querySelectorAll('.ahs-group, .item-group, .journal-group').length;
         const groupEl = clone.querySelector('.ahs-group');
         groupEl.setAttribute('data-group-index', groupIndex);
 
@@ -1042,11 +1112,18 @@
         });
 
         // Header
-        // groupEl.querySelector('.ahs-group-code').textContent = ahs.code || '';
         groupEl.querySelector('.ahs-group-title').textContent = ahs.title || ahs.description || '';
         groupEl.querySelector('.ahs-group-description').value = ahs.description || '';
         groupEl.querySelector('.ahs-group-id').value = ahs.id;
-        groupEl.querySelector('.ahs-group-type').value = ahs.type || '';
+        groupEl.querySelector('.ahs-group-reference-id').value = ahs.id; // Set reference_id to AHS ID
+
+        // Calculate total unit price from items
+        let totalUnitPrice = 0;
+        items.forEach(function(it) {
+            totalUnitPrice += (parseFloat(it.unit_price) || 0) * (parseFloat(it.coefficient) || 1);
+        });
+
+        groupEl.querySelector('.ahs-group-unit-price').value = totalUnitPrice.toFixed(2);
 
         // Items
         const itemsWrap = groupEl.querySelector('.ahs-group-items');
@@ -1055,6 +1132,8 @@
             row.className = 'grid grid-cols-1 md:grid-cols-5 gap-3';
             row.innerHTML = `
                 <input type="hidden" name="items[${groupIndex}][detail][${idx}][estimation_item_id]" value="${it.id}">
+                <input type="hidden" name="items[${groupIndex}][detail][${idx}][reference_id]" value="${it.id}">
+                <input type="hidden" name="items[${groupIndex}][detail][${idx}][item_type]" value="estimation_item">
                 <div class="md:col-span-2">
                     <label class="form-label">Uraian Barang/Pekerjaan</label>
                     <input type="text" class="form-input" name="items[${groupIndex}][detail][${idx}][description]" value="${it.description}" readonly>
@@ -1065,7 +1144,7 @@
                 </div>
                 <div>
                     <label class="form-label">Harga Satuan</label>
-                    <input type="number" class="form-input item-unit-price" name="items[${groupIndex}][detail][${idx}][unit_price]" value="${it.unit_price || 0}" step="0.01" min="0" readonly>
+                    <input type="number" class="form-input item-unit-price" name="items[${groupIndex}][detail][${idx}][unit_price]" value="${it.unit_price || 0}"  min="0" readonly>
                 </div>
                 <div>
                     <label class="form-label">Grand Total</label>
@@ -1079,21 +1158,21 @@
 
         // After append, wire up calculations for this group
         const appendedGroup = container.querySelectorAll('.ahs-group')[container.querySelectorAll('.ahs-group').length - 1];
-        wireGroupCalculations(appendedGroup);
+        wireAhsGroupCalculations(appendedGroup);
         // Initial compute
-        computeGroupTotals(appendedGroup);
+        computeAhsGroupTotals(appendedGroup);
     }
 
-    function renderIndividualItemGroup(item, items) {
+    function renderItemGroup(item, items) {
         const container = document.getElementById('items-container');
-        const tmpl = document.getElementById('ahs-group-template');
+        const tmpl = document.getElementById('item-group-template');
         if (!tmpl) {
             return;
         }
         const clone = tmpl.content.cloneNode(true);
 
-        const groupIndex = container.querySelectorAll('.ahs-group').length;
-        const groupEl = clone.querySelector('.ahs-group');
+        const groupIndex = container.querySelectorAll('.ahs-group, .item-group, .journal-group').length;
+        const groupEl = clone.querySelector('.item-group');
         groupEl.setAttribute('data-group-index', groupIndex);
 
         // Replace GROUP_INDEX in input names
@@ -1104,47 +1183,90 @@
             }
         });
 
-        // Header - show item type and name
+        // Set item type and configure form based on type
+        groupEl.querySelector('.item-group-item-type').value = item.type;
+        groupEl.querySelector('.item-group-reference-id').value = item.id; // Set reference_id to master data ID
         const typeLabel = getItemTypeLabel(item.type);
-        groupEl.querySelector('.ahs-group-title').textContent = `${typeLabel}: ${item.title}`;
-        groupEl.querySelector('.ahs-group-description').value = item.description || '';
-        groupEl.querySelector('.ahs-group-id').value = item.id;
+        groupEl.querySelector('.item-group-type').textContent = typeLabel;
 
-        // Items
-        const itemsWrap = groupEl.querySelector('.ahs-group-items');
-        items.forEach(function(it, idx) {
-            const row = document.createElement('div');
-            row.className = 'grid grid-cols-1 md:grid-cols-5 gap-3';
-            row.innerHTML = `
-                <input type="hidden" name="items[${groupIndex}][detail][${idx}][estimation_item_id]" value="${it.id}">
-                <input type="hidden" name="items[${groupIndex}][detail][${idx}][item_type]" value="${item.type}">
-                <div class="md:col-span-2">
-                    <label class="form-label">Uraian Barang/Pekerjaan</label>
-                    <input type="text" class="form-input" name="items[${groupIndex}][detail][${idx}][description]" value="${it.description}" readonly>
-                </div>
-                <div>
-                    <label class="form-label">Koefisien</label>
-                    <input type="number" class="form-input item-coef" name="items[${groupIndex}][detail][${idx}][coefficient]" value="${it.coefficient || 1}" step="0.0001" min="0" readonly>
-                </div>
-                <div>
-                    <label class="form-label">Harga Satuan</label>
-                    <input type="number" class="form-input item-unit-price" name="items[${groupIndex}][detail][${idx}][unit_price]" value="${it.unit_price || 0}" step="0.01" min="0" readonly>
-                </div>
-                <div>
-                    <label class="form-label">Grand Total</label>
-                    <input type="number" class="form-input item-grand-total" name="items[${groupIndex}][detail][${idx}][grand_total]" value="0" step="0.01" min="0" readonly>
-                </div>
-            `;
-            itemsWrap.appendChild(row);
-        });
+        // Header - show item type and name
+        groupEl.querySelector('.item-group-title').textContent = `${typeLabel}: ${item.title}`;
+        groupEl.querySelector('.item-group-description').value = item.description || '';
 
         container.appendChild(clone);
 
-        // After append, wire up calculations for this group
-        const appendedGroup = container.querySelectorAll('.ahs-group')[container.querySelectorAll('.ahs-group').length - 1];
-        wireGroupCalculations(appendedGroup);
-        // Initial compute
-        computeGroupTotals(appendedGroup);
+        // After append, get the actual DOM element and set values
+        const appendedGroup = container.querySelectorAll('.item-group')[container.querySelectorAll('.item-group').length - 1];
+
+        // Get the first item data
+        const itemData = items[0];
+        if (!itemData) return;
+
+        // Set values after element is in DOM
+        const unitPriceElement = appendedGroup.querySelector('.item-group-unit-price');
+        const coefficientElement = appendedGroup.querySelector('.item-group-coefficient');
+
+        if (unitPriceElement) {
+            const unitPrice = parseFloat(itemData.unit_price || 0);
+            unitPriceElement.value = unitPrice.toFixed(2);
+        }
+
+        if (coefficientElement) {
+            coefficientElement.value = parseFloat(itemData.coefficient || 1);
+        }
+
+        // Wire up calculations and compute initial totals
+        wireItemGroupCalculations(appendedGroup);
+        computeItemGroupTotals(appendedGroup);
+    }
+
+    function renderJournalGroup(item, items) {
+        const container = document.getElementById('items-container');
+        const tmpl = document.getElementById('journal-group-template');
+        if (!tmpl) {
+            return;
+        }
+        const clone = tmpl.content.cloneNode(true);
+
+        const groupIndex = container.querySelectorAll('.ahs-group, .item-group, .journal-group').length;
+        const groupEl = clone.querySelector('.journal-group');
+        groupEl.setAttribute('data-group-index', groupIndex);
+
+        // Replace GROUP_INDEX in input names
+        const inputs = clone.querySelectorAll('input, select, textarea');
+        inputs.forEach(function(input) {
+            if (input.name) {
+                input.name = input.name.replace('GROUP_INDEX', groupIndex);
+            }
+        });
+
+        // Set reference_id to master data ID
+        groupEl.querySelector('.journal-group-reference-id').value = item.id;
+
+        // Header - show item type and name
+        groupEl.querySelector('.journal-group-title').textContent = `Journal Worker: ${item.title}`;
+        groupEl.querySelector('.journal-group-description').value = item.description || '';
+
+        container.appendChild(clone);
+
+        // After append, get the actual DOM element and set values
+        const appendedGroup = container.querySelectorAll('.journal-group')[container.querySelectorAll('.journal-group').length - 1];
+
+        // Get the first item data
+        const itemData = items[0];
+        if (!itemData) return;
+
+        // Set values after element is in DOM
+        const unitPriceElement = appendedGroup.querySelector('.journal-group-unit-price');
+
+        if (unitPriceElement) {
+            const unitPrice = parseFloat(itemData.unit_price || 0);
+            unitPriceElement.value = unitPrice.toFixed(2);
+        }
+
+        // Wire up calculations and compute initial totals
+        wireJournalGroupCalculations(appendedGroup);
+        computeJournalGroupTotals(appendedGroup);
     }
 
     function getItemTypeLabel(type) {
@@ -1162,36 +1284,89 @@
         }
     }
 
-    function wireGroupCalculations(groupEl) {
-        // Per-item coefficient and unit_price changes affect grand total and group rollup
+    function wireAhsGroupCalculations(groupEl) {
+        // Per-item coefficient and unit_price changes affect grand total and group rollup (for AHS)
         groupEl.querySelectorAll('.item-coef, .item-unit-price').forEach(function(input) {
             input.addEventListener('input', function() {
-                computeGroupTotals(groupEl);
+                computeAhsGroupTotals(groupEl);
             });
         });
-        // Header changes
+
+        // Volume changes
         const vol = groupEl.querySelector('.ahs-group-volume');
-        const dur = groupEl.querySelector('.ahs-group-duration');
         if (vol) {
             vol.addEventListener('input', function() {
-                computeGroupTotals(groupEl);
+                computeAhsGroupTotals(groupEl);
             });
         }
+
+        // Duration changes for AHS only
+        const dur = groupEl.querySelector('.ahs-group-duration');
         if (dur) {
             dur.addEventListener('input', function() {
-                computeGroupTotals(groupEl);
+                computeAhsGroupTotals(groupEl);
             });
         }
     }
 
-    function computeGroupTotals(groupEl) {
-        // Sum grand totals = (coefficient * unit_price) per item
+    function wireItemGroupCalculations(groupEl) {
+        // Coefficient changes
+        const coef = groupEl.querySelector('.item-group-coefficient');
+        if (coef) {
+            coef.addEventListener('input', function() {
+                computeItemGroupTotals(groupEl);
+            });
+        }
+
+        // Volume changes
+        const vol = groupEl.querySelector('.item-group-volume');
+        if (vol) {
+            vol.addEventListener('input', function() {
+                computeItemGroupTotals(groupEl);
+            });
+        }
+
+        // Unit price changes
+        const unitPrice = groupEl.querySelector('.item-group-unit-price');
+        if (unitPrice) {
+            unitPrice.addEventListener('input', function() {
+                computeItemGroupTotals(groupEl);
+            });
+        }
+    }
+
+    function wireJournalGroupCalculations(groupEl) {
+        // Volume changes
+        const vol = groupEl.querySelector('.journal-group-volume');
+        if (vol) {
+            vol.addEventListener('input', function() {
+                computeJournalGroupTotals(groupEl);
+            });
+        }
+
+        // Unit price changes
+        const unitPrice = groupEl.querySelector('.journal-group-unit-price');
+        if (unitPrice) {
+            unitPrice.addEventListener('input', function() {
+                computeJournalGroupTotals(groupEl);
+            });
+        }
+    }
+
+    function computeAhsGroupTotals(groupEl) {
+        const vol = parseFloat(groupEl.querySelector('.ahs-group-volume')?.value || '0');
+        const headerUnitPriceEl = groupEl.querySelector('.ahs-group-unit-price');
+        const totalEl = groupEl.querySelector('.ahs-group-total-price');
+
+        let total = 0;
+
+        // AHS calculation: sum of item details, then multiply by volume and duration
         let unitPriceSum = 0;
         const itemRows = groupEl.querySelectorAll('.ahs-group-items > div');
         itemRows.forEach(function(row) {
             const coef = parseFloat(row.querySelector('.item-coef')?.value || '0');
             const unitPrice = parseFloat(row.querySelector('.item-unit-price')?.value || '0');
-            const grand = coef * unitPrice; // NEW FORMULA: coefficient × unit_price
+            const grand = coef * unitPrice;
             const grandEl = row.querySelector('.item-grand-total');
             if (grandEl) {
                 grandEl.value = grand.toFixed(2);
@@ -1200,16 +1375,44 @@
         });
 
         // Set header unit_price to sum of item grands
-        const headerUnitPriceEl = groupEl.querySelector('.ahs-group-unit-price');
         if (headerUnitPriceEl) {
             headerUnitPriceEl.value = unitPriceSum.toFixed(2);
         }
 
-        // total_price = volume * unit_price * duration
-        const vol = parseFloat(groupEl.querySelector('.ahs-group-volume')?.value || '0');
-        const dur = parseFloat(groupEl.querySelector('.ahs-group-duration')?.value || '0');
-        const total = vol * unitPriceSum * dur;
-        const totalEl = groupEl.querySelector('.ahs-group-total-price');
+        // total_price = volume * unit_price_sum * duration (for AHS)
+        const dur = parseFloat(groupEl.querySelector('.ahs-group-duration')?.value || '1');
+        total = vol * unitPriceSum * dur;
+
+        // Set total price
+        if (totalEl) {
+            totalEl.value = total.toFixed(2);
+        }
+    }
+
+    function computeItemGroupTotals(groupEl) {
+        const vol = parseFloat(groupEl.querySelector('.item-group-volume')?.value || '0');
+        const coefficient = parseFloat(groupEl.querySelector('.item-group-coefficient')?.value || '1');
+        const unitPrice = parseFloat(groupEl.querySelector('.item-group-unit-price')?.value || '0');
+        const totalEl = groupEl.querySelector('.item-group-total-price');
+
+        // Item calculation: volume * (coefficient * unit_price)
+        const total = vol * (coefficient * unitPrice);
+
+        // Set total price
+        if (totalEl) {
+            totalEl.value = total.toFixed(2);
+        }
+    }
+
+    function computeJournalGroupTotals(groupEl) {
+        const vol = parseFloat(groupEl.querySelector('.journal-group-volume')?.value || '0');
+        const unitPrice = parseFloat(groupEl.querySelector('.journal-group-unit-price')?.value || '0');
+        const totalEl = groupEl.querySelector('.journal-group-total-price');
+
+        // Journal Worker calculation: volume * unit_price
+        const total = vol * unitPrice;
+
+        // Set total price
         if (totalEl) {
             totalEl.value = total.toFixed(2);
         }
@@ -1217,6 +1420,20 @@
 
     function removeAhsGroup(btn) {
         const grp = btn.closest('.ahs-group');
+        if (grp) {
+            grp.remove();
+        }
+    }
+
+    function removeItemGroup(btn) {
+        const grp = btn.closest('.item-group');
+        if (grp) {
+            grp.remove();
+        }
+    }
+
+    function removeJournalGroup(btn) {
+        const grp = btn.closest('.journal-group');
         if (grp) {
             grp.remove();
         }
